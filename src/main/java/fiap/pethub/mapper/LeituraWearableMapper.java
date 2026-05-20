@@ -5,6 +5,7 @@ import fiap.pethub.dto.response.LeituraWearableResponse;
 import fiap.pethub.entity.LeituraWearable;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
 import java.util.List;
 
@@ -17,6 +18,10 @@ public interface LeituraWearableMapper {
 
     @Mapping(source = "pet.nome", target = "nomePet")
     LeituraWearableResponse toResponse(LeituraWearable leitura);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "pet", ignore = true)
+    void updateEntity(LeituraWearableRequest request, @MappingTarget LeituraWearable entity);
 
     List<LeituraWearableResponse> toResponseList(List<LeituraWearable> list);
 }

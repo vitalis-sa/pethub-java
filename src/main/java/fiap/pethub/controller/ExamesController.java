@@ -1,6 +1,7 @@
 package fiap.pethub.controller;
 
 import fiap.pethub.dto.request.ExameRequest;
+import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.ExameResponse;
 import fiap.pethub.service.ExameService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,13 +71,12 @@ public class ExamesController {
 
     @Operation(summary = "Remover exame")
     @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Removido com sucesso"),
+        @ApiResponse(responseCode = "200", description = "Removido com sucesso"),
         @ApiResponse(responseCode = "404", description = "Exame não encontrado")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<DeleteResponse> delete(@PathVariable Long id) {
+        return ResponseEntity.ok(service.delete(id));
     }
 }
 

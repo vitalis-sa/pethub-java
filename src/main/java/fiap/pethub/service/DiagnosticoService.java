@@ -1,6 +1,7 @@
 package fiap.pethub.service;
 
 import fiap.pethub.dto.request.DiagnosticoRequest;
+import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.DiagnosticoResponse;
 import fiap.pethub.entity.Consulta;
 import fiap.pethub.entity.Diagnostico;
@@ -18,6 +19,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
 @Service
 @RequiredArgsConstructor
 public class DiagnosticoService {
@@ -28,27 +34,29 @@ public class DiagnosticoService {
     private final DiagnosticoMapper mapper;
 
     public Page<DiagnosticoResponse> findAll(Long petId, Long consultaId, Pageable pageable) {
-        if (petId != null) return repository.findByPetId(petId, pageable).map(mapper::toResponse);
-        if (consultaId != null) return repository.findByConsultaId(consultaId, pageable).map(mapper::toResponse);
-        return repository.findAll(pageable).map(mapper::toResponse);
+        return Stream.<Map.Entry<Boolean, Supplier<Page<Diagnostico>>>>of(
+                Map.entry(petId != null,     () -> repository.findByPetId(petId, pageable)),
+                Map.entry(consultaId != null, () -> repository.findByConsultaId(consultaId, pageable))
+        )
+                .filter(Map.Entry::getKey)
+                .findFirst()
+                .map(Map.Entry::getValue)
+                .map(Supplier::get)
+                .orElseGet(() -> repository.findAll(pageable))
+                .map(mapper::toResponse);
     }
 
     @Cacheable(value = "diagnosticos", key = "#id")
     public DiagnosticoResponse findById(Long id) {
-        return mapper.toResponse(findEntityById(id));
+        return repository.findById(id)
+                .map(mapper::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Diagnóstico não encontrado com id: " + id));
     }
 
     @Transactional
     @CacheEvict(value = "diagnosticos", allEntries = true)
     public DiagnosticoResponse create(DiagnosticoRequest request) {
-        Consulta consulta = consultaRepository.findById(request.getConsultaId())
-                .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com id: " + request.getConsultaId()));
-        Pet pet = petRepository.findById(request.getPetId())
-                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + request.getPetId()));
-        Diagnostico entity = mapper.toEntity(request);
-        entity.setConsulta(consulta);
-        entity.setPet(pet);
-        applyBooleanDefaults(entity);
+        Diagnostico entity = buildDiagnosticoEntity(request);
         return mapper.toResponse(repository.save(entity));
     }
 
@@ -62,21 +70,43 @@ public class DiagnosticoService {
 
     @Transactional
     @CacheEvict(value = "diagnosticos", key = "#id")
-    public void delete(Long id) {
-        if (!repository.existsById(id)) throw new ResourceNotFoundException("Diagnóstico não encontrado com id: " + id);
-        repository.deleteById(id);
+    public DeleteResponse delete(Long id) {
+        repository.findById(id)
+                .ifPresentOrElse(
+                        repository::delete,
+                        () -> { throw new ResourceNotFoundException("Diagnóstico não encontrado com id: " + id); }
+                );
+        return DeleteResponse.of("Diagnóstico", id);
+    }
+
+    private Diagnostico buildDiagnosticoEntity(DiagnosticoRequest request) {
+        Diagnostico entity = mapper.toEntity(request);
+        entity.setConsulta(findConsulta(request.getConsultaId()));
+        entity.setPet(findPet(request.getPetId()));
+        applyBooleanDefaults(entity);
+        return entity;
     }
 
     private void applyBooleanDefaults(Diagnostico d) {
-        if (d.getPerdaApetite() == null) d.setPerdaApetite(false);
-        if (d.getVomito() == null) d.setVomito(false);
-        if (d.getDiarreia() == null) d.setDiarreia(false);
-        if (d.getTosse() == null) d.setTosse(false);
-        if (d.getDificuldadeRespiratoria() == null) d.setDificuldadeRespiratoria(false);
-        if (d.getClaudicacao() == null) d.setClaudicacao(false);
-        if (d.getLesoesPele() == null) d.setLesoesPele(false);
-        if (d.getSecrecaoNasal() == null) d.setSecrecaoNasal(false);
-        if (d.getSecrecaoOcular() == null) d.setSecrecaoOcular(false);
+        d.setPerdaApetite(d.getPerdaApetite() != null ? d.getPerdaApetite() : false);
+        d.setVomito(d.getVomito() != null ? d.getVomito() : false);
+        d.setDiarreia(d.getDiarreia() != null ? d.getDiarreia() : false);
+        d.setTosse(d.getTosse() != null ? d.getTosse() : false);
+        d.setDificuldadeRespiratoria(d.getDificuldadeRespiratoria() != null ? d.getDificuldadeRespiratoria() : false);
+        d.setClaudicacao(d.getClaudicacao() != null ? d.getClaudicacao() : false);
+        d.setLesoesPele(d.getLesoesPele() != null ? d.getLesoesPele() : false);
+        d.setSecrecaoNasal(d.getSecrecaoNasal() != null ? d.getSecrecaoNasal() : false);
+        d.setSecrecaoOcular(d.getSecrecaoOcular() != null ? d.getSecrecaoOcular() : false);
+    }
+
+    private Consulta findConsulta(Long consultaId) {
+        return consultaRepository.findById(consultaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com id: " + consultaId));
+    }
+
+    private Pet findPet(Long petId) {
+        return petRepository.findById(petId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + petId));
     }
 
     private Diagnostico findEntityById(Long id) {
@@ -84,4 +114,3 @@ public class DiagnosticoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Diagnóstico não encontrado com id: " + id));
     }
 }
-

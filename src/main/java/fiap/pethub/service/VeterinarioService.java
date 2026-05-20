@@ -2,6 +2,7 @@ package fiap.pethub.service;
 
 import fiap.pethub.config.PasswordUtil;
 import fiap.pethub.dto.request.VeterinarioRequest;
+import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.VeterinarioResponse;
 import fiap.pethub.entity.Veterinario;
 import fiap.pethub.exception.ResourceNotFoundException;
@@ -15,6 +16,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
 @Service
 @RequiredArgsConstructor
 public class VeterinarioService {
@@ -23,26 +29,29 @@ public class VeterinarioService {
     private final VeterinarioMapper mapper;
 
     public Page<VeterinarioResponse> findAll(String nome, Boolean ativo, Pageable pageable) {
-        if (nome != null) {
-            return repository.findByNomeContainingIgnoreCase(nome, pageable).map(mapper::toResponse);
-        }
-        if (Boolean.TRUE.equals(ativo)) {
-            return repository.findByAtivoTrue(pageable).map(mapper::toResponse);
-        }
-        return repository.findAll(pageable).map(mapper::toResponse);
+        return Stream.<Map.Entry<Boolean, Supplier<Page<Veterinario>>>>of(
+                Map.entry(nome != null,              () -> repository.findByNomeContainingIgnoreCase(nome, pageable)),
+                Map.entry(Boolean.TRUE.equals(ativo), () -> repository.findByAtivoTrue(pageable))
+        )
+                .filter(Map.Entry::getKey)
+                .findFirst()
+                .map(Map.Entry::getValue)
+                .map(Supplier::get)
+                .orElseGet(() -> repository.findAll(pageable))
+                .map(mapper::toResponse);
     }
 
     @Cacheable(value = "veterinarios", key = "#id")
     public VeterinarioResponse findById(Long id) {
-        return mapper.toResponse(findEntityById(id));
+        return repository.findById(id)
+                .map(mapper::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + id));
     }
 
     @Transactional
     @CacheEvict(value = "veterinarios", allEntries = true)
     public VeterinarioResponse create(VeterinarioRequest request) {
-        Veterinario entity = mapper.toEntity(request);
-        entity.setSenha(PasswordUtil.encode(request.getSenha()));
-        entity.setAtivo(request.getAtivo() != null ? request.getAtivo() : true);
+        Veterinario entity = buildVeterinarioEntity(request);
         return mapper.toResponse(repository.save(entity));
     }
 
@@ -51,22 +60,38 @@ public class VeterinarioService {
     public VeterinarioResponse update(Long id, VeterinarioRequest request) {
         Veterinario entity = findEntityById(id);
         mapper.updateEntity(request, entity);
-        if (request.getSenha() != null && !request.getSenha().isBlank()) {
-            entity.setSenha(PasswordUtil.encode(request.getSenha()));
-        }
-        if (request.getAtivo() != null) {
-            entity.setAtivo(request.getAtivo());
-        }
+        applySenha(request.getSenha(), entity);
+        applyAtivo(request.getAtivo(), entity);
         return mapper.toResponse(repository.save(entity));
     }
 
     @Transactional
     @CacheEvict(value = "veterinarios", key = "#id")
-    public void delete(Long id) {
-        if (!repository.existsById(id)) {
-            throw new ResourceNotFoundException("Veterinário não encontrado com id: " + id);
-        }
-        repository.deleteById(id);
+    public DeleteResponse delete(Long id) {
+        repository.findById(id)
+                .ifPresentOrElse(
+                        repository::delete,
+                        () -> { throw new ResourceNotFoundException("Veterinário não encontrado com id: " + id); }
+                );
+        return DeleteResponse.of("Veterinário", id);
+    }
+
+    private Veterinario buildVeterinarioEntity(VeterinarioRequest request) {
+        Veterinario entity = mapper.toEntity(request);
+        entity.setSenha(PasswordUtil.encode(request.getSenha()));
+        entity.setAtivo(request.getAtivo() != null ? request.getAtivo() : true);
+        return entity;
+    }
+
+    private void applySenha(String senha, Veterinario entity) {
+        Optional.ofNullable(senha)
+                .filter(s -> !s.isBlank())
+                .map(PasswordUtil::encode)
+                .ifPresent(entity::setSenha);
+    }
+
+    private void applyAtivo(Boolean ativo, Veterinario entity) {
+        Optional.ofNullable(ativo).ifPresent(entity::setAtivo);
     }
 
     private Veterinario findEntityById(Long id) {

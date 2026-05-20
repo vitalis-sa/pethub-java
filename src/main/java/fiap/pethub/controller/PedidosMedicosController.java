@@ -1,6 +1,7 @@
 package fiap.pethub.controller;
 
 import fiap.pethub.dto.request.PedidoMedicoRequest;
+import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.PedidoMedicoResponse;
 import fiap.pethub.enums.StatusPedidoMedico;
 import fiap.pethub.enums.TipoPedidoMedico;
@@ -73,13 +74,12 @@ public class PedidosMedicosController {
 
     @Operation(summary = "Remover pedido médico")
     @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Removido com sucesso"),
+        @ApiResponse(responseCode = "200", description = "Removido com sucesso"),
         @ApiResponse(responseCode = "404", description = "Pedido não encontrado")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<DeleteResponse> delete(@PathVariable Long id) {
+        return ResponseEntity.ok(service.delete(id));
     }
 }
 

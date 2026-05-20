@@ -3,8 +3,8 @@ package fiap.pethub.service;
 import fiap.pethub.client.LembreteClient;
 import fiap.pethub.client.LembreteRequest;
 import fiap.pethub.dto.request.VacinaTratamentoRequest;
+import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.VacinaTratamentoResponse;
-import fiap.pethub.entity.Consulta;
 import fiap.pethub.entity.Pet;
 import fiap.pethub.entity.VacinaTratamento;
 import fiap.pethub.entity.Veterinario;
@@ -23,6 +23,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
 @Service
 @RequiredArgsConstructor
 public class VacinaTratamentoService {
@@ -35,47 +40,31 @@ public class VacinaTratamentoService {
     private final LembreteClient lembreteClient;
 
     public Page<VacinaTratamentoResponse> findAll(Long petId, TipoVacinaTratamento tipo, Pageable pageable) {
-        if (petId != null && tipo != null) return repository.findByPetIdAndTipo(petId, tipo, pageable).map(mapper::toResponse);
-        if (petId != null) return repository.findByPetId(petId, pageable).map(mapper::toResponse);
-        return repository.findAll(pageable).map(mapper::toResponse);
+        return Stream.<Map.Entry<Boolean, Supplier<Page<VacinaTratamento>>>>of(
+                Map.entry(petId != null && tipo != null, () -> repository.findByPetIdAndTipo(petId, tipo, pageable)),
+                Map.entry(petId != null,                 () -> repository.findByPetId(petId, pageable))
+        )
+                .filter(Map.Entry::getKey)
+                .findFirst()
+                .map(Map.Entry::getValue)
+                .map(Supplier::get)
+                .orElseGet(() -> repository.findAll(pageable))
+                .map(mapper::toResponse);
     }
 
     @Cacheable(value = "vacinas", key = "#id")
     public VacinaTratamentoResponse findById(Long id) {
-        return mapper.toResponse(findEntityById(id));
+        return repository.findById(id)
+                .map(mapper::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Vacina/Tratamento não encontrado com id: " + id));
     }
 
     @Transactional
     @CacheEvict(value = "vacinas", allEntries = true)
     public VacinaTratamentoResponse create(VacinaTratamentoRequest request) {
-        Pet pet = petRepository.findById(request.getPetId())
-                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + request.getPetId()));
-        Veterinario veterinario = veterinarioRepository.findById(request.getVeterinarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + request.getVeterinarioId()));
-
-        VacinaTratamento entity = mapper.toEntity(request);
-        entity.setPet(pet);
-        entity.setVeterinario(veterinario);
-
-        if (request.getConsultaId() != null) {
-            Consulta consulta = consultaRepository.findById(request.getConsultaId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com id: " + request.getConsultaId()));
-            entity.setConsulta(consulta);
-        }
-
+        VacinaTratamento entity = buildVacinaEntity(request);
         VacinaTratamento saved = repository.save(entity);
-
-        // Lembrete de próxima dose de vacina
-        if (saved.getProximaDose() != null) {
-            lembreteClient.criarLembrete(LembreteRequest.builder()
-                    .tutorId(pet.getTutor().getId())
-                    .petId(pet.getId())
-                    .tipo("VACINA")
-                    .dataAgendada(saved.getProximaDose())
-                    .mensagem("Próxima dose de " + saved.getNome() + " para " + pet.getNome())
-                    .build());
-        }
-
+        notificarProximaDose(saved);
         return mapper.toResponse(saved);
     }
 
@@ -89,9 +78,52 @@ public class VacinaTratamentoService {
 
     @Transactional
     @CacheEvict(value = "vacinas", key = "#id")
-    public void delete(Long id) {
-        if (!repository.existsById(id)) throw new ResourceNotFoundException("Vacina/Tratamento não encontrado com id: " + id);
-        repository.deleteById(id);
+    public DeleteResponse delete(Long id) {
+        repository.findById(id)
+                .ifPresentOrElse(
+                        repository::delete,
+                        () -> { throw new ResourceNotFoundException("Vacina/Tratamento não encontrado com id: " + id); }
+                );
+        return DeleteResponse.of("Vacina/Tratamento", id);
+    }
+
+    private VacinaTratamento buildVacinaEntity(VacinaTratamentoRequest request) {
+        VacinaTratamento entity = mapper.toEntity(request);
+        entity.setPet(findPet(request.getPetId()));
+        entity.setVeterinario(findVeterinario(request.getVeterinarioId()));
+        applyConsulta(request.getConsultaId(), entity);
+        return entity;
+    }
+
+    private void applyConsulta(Long consultaId, VacinaTratamento entity) {
+        Optional.ofNullable(consultaId)
+                .map(cid -> consultaRepository.findById(cid)
+                        .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com id: " + cid)))
+                .ifPresent(entity::setConsulta);
+    }
+
+    private void notificarProximaDose(VacinaTratamento saved) {
+        Optional.ofNullable(saved.getProximaDose())
+                .ifPresent(data -> {
+                    Pet pet = saved.getPet();
+                    lembreteClient.criarLembrete(LembreteRequest.builder()
+                            .tutorId(pet.getTutor().getId())
+                            .petId(pet.getId())
+                            .tipo("VACINA")
+                            .dataAgendada(data)
+                            .mensagem("Próxima dose de " + saved.getNome() + " para " + pet.getNome())
+                            .build());
+                });
+    }
+
+    private Pet findPet(Long petId) {
+        return petRepository.findById(petId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + petId));
+    }
+
+    private Veterinario findVeterinario(Long veterinarioId) {
+        return veterinarioRepository.findById(veterinarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + veterinarioId));
     }
 
     private VacinaTratamento findEntityById(Long id) {

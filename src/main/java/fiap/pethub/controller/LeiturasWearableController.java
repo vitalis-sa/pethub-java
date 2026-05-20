@@ -1,6 +1,7 @@
 package fiap.pethub.controller;
 
 import fiap.pethub.dto.request.LeituraWearableRequest;
+import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.LeituraWearableResponse;
 import fiap.pethub.service.LeituraWearableService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,15 +59,24 @@ public class LeiturasWearableController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
     }
 
+    @Operation(summary = "Atualizar leitura wearable")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Atualizado com sucesso"),
+        @ApiResponse(responseCode = "404", description = "Leitura não encontrada")
+    })
+    @PutMapping("/{id}")
+    public ResponseEntity<LeituraWearableResponse> update(@PathVariable Long id, @Valid @RequestBody LeituraWearableRequest request) {
+        return ResponseEntity.ok(service.update(id, request));
+    }
+
     @Operation(summary = "Remover leitura wearable")
     @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Removido com sucesso"),
+        @ApiResponse(responseCode = "200", description = "Removido com sucesso"),
         @ApiResponse(responseCode = "404", description = "Leitura não encontrada")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<DeleteResponse> delete(@PathVariable Long id) {
+        return ResponseEntity.ok(service.delete(id));
     }
 }
 

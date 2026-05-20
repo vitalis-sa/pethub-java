@@ -4,9 +4,9 @@ import fiap.pethub.client.LembreteClient;
 import fiap.pethub.client.LembreteRequest;
 import fiap.pethub.dto.request.ConsultaRequest;
 import fiap.pethub.dto.response.ConsultaResponse;
+import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.entity.Consulta;
 import fiap.pethub.entity.Pet;
-import fiap.pethub.entity.UnidadeVeterinario;
 import fiap.pethub.entity.Veterinario;
 import fiap.pethub.enums.StatusConsulta;
 import fiap.pethub.exception.ResourceNotFoundException;
@@ -23,6 +23,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+
 @Service
 @RequiredArgsConstructor
 public class ConsultaService {
@@ -35,55 +40,33 @@ public class ConsultaService {
     private final LembreteClient lembreteClient;
 
     public Page<ConsultaResponse> findAll(Long petId, Long veterinarioId, StatusConsulta status, Pageable pageable) {
-        if (petId != null && status != null) {
-            return repository.findByPetIdAndStatus(petId, status, pageable).map(mapper::toResponse);
-        }
-        if (petId != null) {
-            return repository.findByPetId(petId, pageable).map(mapper::toResponse);
-        }
-        if (veterinarioId != null) {
-            return repository.findByVeterinarioId(veterinarioId, pageable).map(mapper::toResponse);
-        }
-        if (status != null) {
-            return repository.findByStatus(status, pageable).map(mapper::toResponse);
-        }
-        return repository.findAll(pageable).map(mapper::toResponse);
+        return Stream.<Map.Entry<Boolean, Supplier<Page<Consulta>>>>of(
+                Map.entry(petId != null && status != null, () -> repository.findByPetIdAndStatus(petId, status, pageable)),
+                Map.entry(petId != null,                   () -> repository.findByPetId(petId, pageable)),
+                Map.entry(veterinarioId != null,           () -> repository.findByVeterinarioId(veterinarioId, pageable)),
+                Map.entry(status != null,                  () -> repository.findByStatus(status, pageable))
+        )
+                .filter(Map.Entry::getKey)
+                .findFirst()
+                .map(Map.Entry::getValue)
+                .map(Supplier::get)
+                .orElseGet(() -> repository.findAll(pageable))
+                .map(mapper::toResponse);
     }
 
     @Cacheable(value = "consultas", key = "#id")
     public ConsultaResponse findById(Long id) {
-        return mapper.toResponse(findEntityById(id));
+        return repository.findById(id)
+                .map(mapper::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com id: " + id));
     }
 
     @Transactional
     @CacheEvict(value = "consultas", allEntries = true)
     public ConsultaResponse create(ConsultaRequest request) {
-        Pet pet = petRepository.findById(request.getPetId())
-                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + request.getPetId()));
-        Veterinario veterinario = veterinarioRepository.findById(request.getVeterinarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + request.getVeterinarioId()));
-
-        Consulta entity = mapper.toEntity(request);
-        entity.setPet(pet);
-        entity.setVeterinario(veterinario);
-
-        if (request.getUnidadeId() != null) {
-            UnidadeVeterinario unidade = unidadeRepository.findById(request.getUnidadeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Unidade não encontrada com id: " + request.getUnidadeId()));
-            entity.setUnidade(unidade);
-        }
-
+        Consulta entity = buildConsultaEntity(request);
         Consulta saved = repository.save(entity);
-
-        // Notifica tutor via API C#
-        lembreteClient.criarLembrete(LembreteRequest.builder()
-                .tutorId(pet.getTutor().getId())
-                .petId(pet.getId())
-                .tipo("CONSULTA")
-                .dataAgendada(saved.getDataHora().toLocalDate())
-                .mensagem("Consulta agendada para " + pet.getNome() + " em " + saved.getDataHora())
-                .build());
-
+        notificarTutor(saved);
         return mapper.toResponse(saved);
     }
 
@@ -92,21 +75,56 @@ public class ConsultaService {
     public ConsultaResponse update(Long id, ConsultaRequest request) {
         Consulta entity = findEntityById(id);
         mapper.updateEntity(request, entity);
-        if (request.getUnidadeId() != null) {
-            UnidadeVeterinario unidade = unidadeRepository.findById(request.getUnidadeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Unidade não encontrada com id: " + request.getUnidadeId()));
-            entity.setUnidade(unidade);
-        }
+        applyUnidade(request.getUnidadeId(), entity);
         return mapper.toResponse(repository.save(entity));
     }
 
     @Transactional
     @CacheEvict(value = "consultas", key = "#id")
-    public void delete(Long id) {
-        if (!repository.existsById(id)) {
-            throw new ResourceNotFoundException("Consulta não encontrada com id: " + id);
-        }
-        repository.deleteById(id);
+    public DeleteResponse delete(Long id) {
+        repository.findById(id)
+                .ifPresentOrElse(
+                        repository::delete,
+                        () -> { throw new ResourceNotFoundException("Consulta não encontrada com id: " + id); }
+                );
+        return DeleteResponse.of("Consulta", id);
+    }
+
+    private Consulta buildConsultaEntity(ConsultaRequest request) {
+        Consulta entity = mapper.toEntity(request);
+        entity.setPet(findPet(request.getPetId()));
+        entity.setVeterinario(findVeterinario(request.getVeterinarioId()));
+        applyUnidade(request.getUnidadeId(), entity);
+        return entity;
+    }
+
+    private void applyUnidade(Long unidadeId, Consulta entity) {
+        unidadeRepository.findById(unidadeId)
+                .ifPresentOrElse(
+                        entity::setUnidade,
+                        () -> { throw new ResourceNotFoundException("Unidade veterinária não encontrada com id: " + unidadeId);
+                        });
+    }
+
+    private void notificarTutor(Consulta saved) {
+        Pet pet = saved.getPet();
+        lembreteClient.criarLembrete(LembreteRequest.builder()
+                .tutorId(pet.getTutor().getId())
+                .petId(pet.getId())
+                .tipo("CONSULTA")
+                .dataAgendada(saved.getDataHora().toLocalDate())
+                .mensagem("Consulta agendada para " + pet.getNome() + " em " + saved.getDataHora())
+                .build());
+    }
+
+    private Pet findPet(Long petId) {
+        return petRepository.findById(petId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + petId));
+    }
+
+    private Veterinario findVeterinario(Long veterinarioId) {
+        return veterinarioRepository.findById(veterinarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + veterinarioId));
     }
 
     private Consulta findEntityById(Long id) {

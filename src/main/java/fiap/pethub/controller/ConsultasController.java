@@ -2,6 +2,7 @@ package fiap.pethub.controller;
 
 import fiap.pethub.dto.request.ConsultaRequest;
 import fiap.pethub.dto.response.ConsultaResponse;
+import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.enums.StatusConsulta;
 import fiap.pethub.service.ConsultaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -72,13 +73,12 @@ public class ConsultasController {
 
     @Operation(summary = "Remover consulta")
     @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Removido com sucesso"),
+        @ApiResponse(responseCode = "200", description = "Removido com sucesso"),
         @ApiResponse(responseCode = "404", description = "Consulta não encontrada")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<DeleteResponse> delete(@PathVariable Long id) {
+        return ResponseEntity.ok(service.delete(id));
     }
 }
 
