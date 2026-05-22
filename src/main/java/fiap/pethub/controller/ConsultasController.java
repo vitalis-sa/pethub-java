@@ -50,7 +50,7 @@ public class ConsultasController {
         return ResponseEntity.ok(service.findById(id));
     }
 
-    @Operation(summary = "Criar consulta", description = "Cria a consulta e notifica o tutor via API C#")
+    @Operation(summary = "Criar consulta", description = "Cria a consulta e notifica o responsável via API C#")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Consulta criada"),
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),

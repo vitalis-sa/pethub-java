@@ -4,11 +4,11 @@ import fiap.pethub.dto.request.PetRequest;
 import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.PetResponse;
 import fiap.pethub.entity.Pet;
-import fiap.pethub.entity.Tutor;
+import fiap.pethub.entity.Responsavel;
 import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.PetMapper;
 import fiap.pethub.repository.PetRepository;
-import fiap.pethub.repository.TutorRepository;
+import fiap.pethub.repository.ResponsavelRepository;
 import fiap.pethub.repository.VeterinarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 public class PetService {
 
     private final PetRepository repository;
-    private final TutorRepository tutorRepository;
+    private final ResponsavelRepository responsavelRepository;
     private final VeterinarioRepository veterinarioRepository;
     private final PetMapper mapper;
 
@@ -45,10 +45,9 @@ public class PetService {
                 .map(mapper::toResponse);
     }
 
-    public Page<PetResponse> findByTutorCpf(String cpf, Pageable pageable) {
-        return repository.findById(findTutorByCpf(cpf).getId())
-                .map(pet -> repository.findByTutorId(pet.getTutor().getId(), pageable))
-                .orElseGet(() -> repository.findByTutorId(findTutorByCpf(cpf).getId(), pageable))
+    public Page<PetResponse> findByResponsavelCpf(String cpf, Pageable pageable) {
+        Responsavel responsavel = findResponsavelByCpf(cpf);
+        return repository.findByResponsavelId(responsavel.getId(), pageable)
                 .map(mapper::toResponse);
     }
 
@@ -71,7 +70,7 @@ public class PetService {
     public PetResponse update(Long id, PetRequest request) {
         Pet entity = findEntityById(id);
         mapper.updateEntity(request, entity);
-        applyTutor(request.getTutorCpf(), entity);
+        applyResponsavel(request.getResponsavelCpf(), entity);
         applyVeterinario(request.getVeterinarioResponsavelId(), entity);
         return mapper.toResponse(repository.save(entity));
     }
@@ -89,16 +88,16 @@ public class PetService {
 
     private Pet buildPetEntity(PetRequest request) {
         Pet entity = mapper.toEntity(request);
-        entity.setTutor(findTutorByCpf(request.getTutorCpf()));
+        entity.setResponsavel(findResponsavelByCpf(request.getResponsavelCpf()));
         applyVeterinario(request.getVeterinarioResponsavelId(), entity);
         return entity;
     }
 
-    private void applyTutor(String cpf, Pet entity) {
+    private void applyResponsavel(String cpf, Pet entity) {
         Optional.ofNullable(cpf)
-                .map(c -> tutorRepository.findByCpf(c)
-                        .orElseThrow(() -> new ResourceNotFoundException("Tutor não encontrado com CPF: " + c)))
-                .ifPresent(entity::setTutor);
+                .map(c -> responsavelRepository.findByCpf(c)
+                        .orElseThrow(() -> new ResourceNotFoundException("Responsável não encontrado com CPF: " + c)))
+                .ifPresent(entity::setResponsavel);
     }
 
     private void applyVeterinario(Long veterinarioId, Pet entity) {
@@ -108,9 +107,9 @@ public class PetService {
                 .ifPresent(entity::setVeterinarioResponsavel);
     }
 
-    private Tutor findTutorByCpf(String cpf) {
-        return tutorRepository.findByCpf(cpf)
-                .orElseThrow(() -> new ResourceNotFoundException("Tutor não encontrado com CPF: " + cpf));
+    private Responsavel findResponsavelByCpf(String cpf) {
+        return responsavelRepository.findByCpf(cpf)
+                .orElseThrow(() -> new ResourceNotFoundException("Responsável não encontrado com CPF: " + cpf));
     }
 
     private Pet findEntityById(Long id) {

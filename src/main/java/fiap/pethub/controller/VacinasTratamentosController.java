@@ -49,7 +49,7 @@ public class VacinasTratamentosController {
         return ResponseEntity.ok(service.findById(id));
     }
 
-    @Operation(summary = "Registrar vacina/tratamento", description = "Se proximaDose for preenchida, notifica o tutor via API C#")
+    @Operation(summary = "Registrar vacina/tratamento", description = "Se proximaDose for preenchida, notifica o responsável via API C#")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Registrado com sucesso"),
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),

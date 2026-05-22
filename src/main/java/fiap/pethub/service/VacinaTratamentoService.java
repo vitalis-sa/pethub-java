@@ -1,13 +1,12 @@
 package fiap.pethub.service;
 
-import fiap.pethub.client.LembreteClient;
-import fiap.pethub.client.LembreteRequest;
 import fiap.pethub.dto.request.VacinaTratamentoRequest;
 import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.VacinaTratamentoResponse;
 import fiap.pethub.entity.Pet;
 import fiap.pethub.entity.VacinaTratamento;
 import fiap.pethub.entity.Veterinario;
+import fiap.pethub.enums.TipoLembrete;
 import fiap.pethub.enums.TipoVacinaTratamento;
 import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.VacinaTratamentoMapper;
@@ -37,7 +36,7 @@ public class VacinaTratamentoService {
     private final VeterinarioRepository veterinarioRepository;
     private final ConsultaRepository consultaRepository;
     private final VacinaTratamentoMapper mapper;
-    private final LembreteClient lembreteClient;
+    private final LembreteService lembreteService;
 
     public Page<VacinaTratamentoResponse> findAll(Long petId, TipoVacinaTratamento tipo, Pageable pageable) {
         return Stream.<Map.Entry<Boolean, Supplier<Page<VacinaTratamento>>>>of(
@@ -106,13 +105,15 @@ public class VacinaTratamentoService {
         Optional.ofNullable(saved.getProximaDose())
                 .ifPresent(data -> {
                     Pet pet = saved.getPet();
-                    lembreteClient.criarLembrete(LembreteRequest.builder()
-                            .tutorId(pet.getTutor().getId())
-                            .petId(pet.getId())
-                            .tipo("VACINA")
-                            .dataAgendada(data)
-                            .mensagem("Próxima dose de " + saved.getNome() + " para " + pet.getNome())
-                            .build());
+                    lembreteService.criarLembrete(
+                            pet.getResponsavel().getId(),
+                            pet.getId(),
+                            TipoLembrete.VACINA,
+                            data,
+                            "Próxima dose de " + saved.getNome() + " para " + pet.getNome(),
+                            saved.getId(),
+                            "VacinaTratamento"
+                    );
                 });
     }
 

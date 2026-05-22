@@ -38,16 +38,16 @@ public class PetsController {
         return ResponseEntity.ok(service.findAll(nome, veterinarioId, pageable));
     }
 
-    @Operation(summary = "Listar pets por CPF do tutor")
+    @Operation(summary = "Listar pets por CPF do responsável")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso"),
-        @ApiResponse(responseCode = "404", description = "Tutor não encontrado")
+        @ApiResponse(responseCode = "404", description = "Responsável não encontrado")
     })
-    @GetMapping("/tutor")
-    public ResponseEntity<Page<PetResponse>> findByTutorCpf(
-            @Parameter(description = "CPF do tutor", required = true) @RequestParam String cpf,
+    @GetMapping("/responsavel")
+    public ResponseEntity<Page<PetResponse>> findByResponsavelCpf(
+            @Parameter(description = "CPF do responsável", required = true) @RequestParam String cpf,
             @ParameterObject Pageable pageable) {
-        return ResponseEntity.ok(service.findByTutorCpf(cpf, pageable));
+        return ResponseEntity.ok(service.findByResponsavelCpf(cpf, pageable));
     }
 
     @Operation(summary = "Buscar pet por ID")
@@ -60,11 +60,11 @@ public class PetsController {
         return ResponseEntity.ok(service.findById(id));
     }
 
-    @Operation(summary = "Cadastrar pet", description = "Busca o tutor pelo CPF e vincula ao pet")
+    @Operation(summary = "Cadastrar pet", description = "Busca o responsável pelo CPF e vincula ao pet")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Pet criado"),
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),
-        @ApiResponse(responseCode = "404", description = "Tutor ou veterinário não encontrado")
+        @ApiResponse(responseCode = "404", description = "Responsável ou veterinário não encontrado")
     })
     @PostMapping
     public ResponseEntity<PetResponse> create(@Valid @RequestBody PetRequest request) {

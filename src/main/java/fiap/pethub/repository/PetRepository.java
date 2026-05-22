@@ -6,7 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PetRepository extends JpaRepository<Pet, Long> {
-    Page<Pet> findByTutorId(Long tutorId, Pageable pageable);
+    Page<Pet> findByResponsavelId(Long responsavelId, Pageable pageable);
     Page<Pet> findByVeterinarioResponsavelId(Long veterinarioId, Pageable pageable);
     Page<Pet> findByNomeContainingIgnoreCase(String nome, Pageable pageable);
 }

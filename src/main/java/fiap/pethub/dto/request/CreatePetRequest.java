@@ -22,8 +22,8 @@ public class CreatePetRequest {
     private Double peso;
     private String genero;
 
-    @NotBlank(message = "CPF do tutor é obrigatório")
-    private String tutorCpf;
+    @NotBlank(message = "CPF do responsável é obrigatório")
+    private String responsavelCpf;
 
     private Long veterinarioResponsavelId;
 }

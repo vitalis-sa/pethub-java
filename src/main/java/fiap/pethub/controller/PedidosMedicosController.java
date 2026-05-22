@@ -51,7 +51,7 @@ public class PedidosMedicosController {
         return ResponseEntity.ok(service.findById(id));
     }
 
-    @Operation(summary = "Criar pedido médico", description = "Notifica o tutor via API C# com lembrete do tipo EXAME ou MEDICAMENTO")
+    @Operation(summary = "Criar pedido médico", description = "Notifica o responsável via API C# com lembrete do tipo EXAME ou MEDICAMENTO")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Pedido criado"),
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),

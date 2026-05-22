@@ -1,7 +1,5 @@
 package fiap.pethub.service;
 
-import fiap.pethub.client.LembreteClient;
-import fiap.pethub.client.LembreteRequest;
 import fiap.pethub.dto.request.PedidoMedicoRequest;
 import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.PedidoMedicoResponse;
@@ -9,6 +7,7 @@ import fiap.pethub.entity.Consulta;
 import fiap.pethub.entity.PedidoMedico;
 import fiap.pethub.entity.Pet;
 import fiap.pethub.enums.StatusPedidoMedico;
+import fiap.pethub.enums.TipoLembrete;
 import fiap.pethub.enums.TipoPedidoMedico;
 import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.PedidoMedicoMapper;
@@ -24,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -36,7 +34,7 @@ public class PedidoMedicoService {
     private final ConsultaRepository consultaRepository;
     private final PetRepository petRepository;
     private final PedidoMedicoMapper mapper;
-    private final LembreteClient lembreteClient;
+    private final LembreteService lembreteService;
 
     public Page<PedidoMedicoResponse> findAll(Long petId, StatusPedidoMedico status, TipoPedidoMedico tipo, Pageable pageable) {
         return Stream.<Map.Entry<Boolean, Supplier<Page<PedidoMedico>>>>of(
@@ -64,7 +62,7 @@ public class PedidoMedicoService {
     public PedidoMedicoResponse create(PedidoMedicoRequest request) {
         PedidoMedico entity = buildPedidoEntity(request);
         PedidoMedico saved = repository.save(entity);
-        notificarTutor(saved);
+        notificarResponsavel(saved);
         return mapper.toResponse(saved);
     }
 
@@ -95,16 +93,18 @@ public class PedidoMedicoService {
         return entity;
     }
 
-    private void notificarTutor(PedidoMedico saved) {
+    private void notificarResponsavel(PedidoMedico saved) {
         Pet pet = saved.getPet();
-        String tipo = saved.getTipo() == TipoPedidoMedico.EXAME ? "EXAME" : "MEDICAMENTO";
-        lembreteClient.criarLembrete(LembreteRequest.builder()
-                .tutorId(pet.getTutor().getId())
-                .petId(pet.getId())
-                .tipo(tipo)
-                .dataAgendada(saved.getDataLimite())
-                .mensagem(saved.getDescricao() + (saved.getInstrucoes() != null ? " — " + saved.getInstrucoes() : ""))
-                .build());
+        TipoLembrete tipo = saved.getTipo() == TipoPedidoMedico.EXAME ? TipoLembrete.EXAME : TipoLembrete.MEDICAMENTO;
+        lembreteService.criarLembrete(
+                pet.getResponsavel().getId(),
+                pet.getId(),
+                tipo,
+                saved.getDataLimite(),
+                saved.getDescricao() + (saved.getInstrucoes() != null ? " — " + saved.getInstrucoes() : ""),
+                saved.getId(),
+                "PedidoMedico"
+        );
     }
 
     private Consulta findConsulta(Long consultaId) {

@@ -33,8 +33,8 @@ public class PetResponse {
     @Schema(description = "Gênero", example = "Macho")
     private String genero;
 
-    @Schema(description = "Nome do tutor", example = "João Silva")
-    private String nomeTutor;
+    @Schema(description = "Nome do responsável", example = "João Silva")
+    private String nomeResponsavel;
 
     @Schema(description = "Nome do veterinário responsável", example = "Dr. Carlos Souza")
     private String nomeVeterinarioResponsavel;

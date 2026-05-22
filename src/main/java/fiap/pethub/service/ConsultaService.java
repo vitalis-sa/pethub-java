@@ -1,7 +1,5 @@
 package fiap.pethub.service;
 
-import fiap.pethub.client.LembreteClient;
-import fiap.pethub.client.LembreteRequest;
 import fiap.pethub.dto.request.ConsultaRequest;
 import fiap.pethub.dto.response.ConsultaResponse;
 import fiap.pethub.dto.response.DeleteResponse;
@@ -9,6 +7,7 @@ import fiap.pethub.entity.Consulta;
 import fiap.pethub.entity.Pet;
 import fiap.pethub.entity.Veterinario;
 import fiap.pethub.enums.StatusConsulta;
+import fiap.pethub.enums.TipoLembrete;
 import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.ConsultaMapper;
 import fiap.pethub.repository.ConsultaRepository;
@@ -24,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -37,7 +35,7 @@ public class ConsultaService {
     private final VeterinarioRepository veterinarioRepository;
     private final UnidadeVeterinarioRepository unidadeRepository;
     private final ConsultaMapper mapper;
-    private final LembreteClient lembreteClient;
+    private final LembreteService lembreteService;
 
     public Page<ConsultaResponse> findAll(Long petId, Long veterinarioId, StatusConsulta status, Pageable pageable) {
         return Stream.<Map.Entry<Boolean, Supplier<Page<Consulta>>>>of(
@@ -66,7 +64,7 @@ public class ConsultaService {
     public ConsultaResponse create(ConsultaRequest request) {
         Consulta entity = buildConsultaEntity(request);
         Consulta saved = repository.save(entity);
-        notificarTutor(saved);
+        notificarResponsavel(saved);
         return mapper.toResponse(saved);
     }
 
@@ -106,15 +104,17 @@ public class ConsultaService {
                         });
     }
 
-    private void notificarTutor(Consulta saved) {
+    private void notificarResponsavel(Consulta saved) {
         Pet pet = saved.getPet();
-        lembreteClient.criarLembrete(LembreteRequest.builder()
-                .tutorId(pet.getTutor().getId())
-                .petId(pet.getId())
-                .tipo("CONSULTA")
-                .dataAgendada(saved.getDataHora().toLocalDate())
-                .mensagem("Consulta agendada para " + pet.getNome() + " em " + saved.getDataHora())
-                .build());
+        lembreteService.criarLembrete(
+                pet.getResponsavel().getId(),
+                pet.getId(),
+                TipoLembrete.CONSULTA,
+                saved.getDataHora().toLocalDate(),
+                "Consulta agendada para " + pet.getNome() + " em " + saved.getDataHora(),
+                saved.getId(),
+                "Consulta"
+        );
     }
 
     private Pet findPet(Long petId) {

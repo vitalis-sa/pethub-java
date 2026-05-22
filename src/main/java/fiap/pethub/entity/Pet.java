@@ -36,11 +36,10 @@ public class Pet {
     private String genero;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tutor_id", nullable = false)
-    private Tutor tutor;
+    @JoinColumn(name = "responsavel_id", nullable = false)
+    private Responsavel responsavel;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "veterinario_responsavel_id")
     private Veterinario veterinarioResponsavel;
 }
-

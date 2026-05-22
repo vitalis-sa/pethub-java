@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @OpenAPIDefinition(
     info = @Info(
         title = "PetHub API — Java Backend",
-        version = "1.0",
+        version = "1.1.0",
         description = "API responsável por Veterinários, Unidades Veterinárias, Pets, Consultas, Exames, Diagnósticos, Vacinas/Tratamentos, Pedidos Médicos e Leituras Wearable IoT.",
         contact = @Contact(
             name = "PetHub Team",
