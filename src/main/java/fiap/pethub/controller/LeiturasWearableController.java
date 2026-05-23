@@ -23,19 +23,22 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/leituras-wearable")
 @RequiredArgsConstructor
-@Tag(name = "Leituras Wearable", description = "Dados de monitoramento IoT do pet — somente armazenamento, não gera diagnósticos automaticamente")
+@Tag(name = "Leituras Wearable", description = "Monitoramento de consumo de água de felinos — gera métricas e alertas de saúde automaticamente")
 public class LeiturasWearableController {
 
     private final LeituraWearableService service;
 
-    @Operation(summary = "Listar leituras wearable", description = "Filtrável por petId e apenasAnomalias")
+    @Operation(
+        summary = "Listar leituras de hidratação",
+        description = "Retorna leituras paginadas. Filtrável por petId e apenasAlertas (leituras que geraram alerta de saúde)"
+    )
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")})
     @GetMapping
     public ResponseEntity<Page<LeituraWearableResponse>> findAll(
             @Parameter(description = "Filtrar por pet") @RequestParam(required = false) Long petId,
-            @Parameter(description = "Retornar apenas leituras com anomalia detectada") @RequestParam(required = false) Boolean apenasAnomalias,
+            @Parameter(description = "Retornar apenas leituras que geraram alertas de saúde") @RequestParam(required = false) Boolean apenasAlertas,
             @ParameterObject Pageable pageable) {
-        return ResponseEntity.ok(service.findAll(petId, apenasAnomalias, pageable));
+        return ResponseEntity.ok(service.findAll(petId, apenasAlertas, pageable));
     }
 
     @Operation(summary = "Buscar leitura por ID")
@@ -48,9 +51,13 @@ public class LeiturasWearableController {
         return ResponseEntity.ok(service.findById(id));
     }
 
-    @Operation(summary = "Registrar leitura wearable", description = "Recebe dados do dispositivo IoT. Quando anomaliaDetectada=true, a leitura é armazenada para alerta ao veterinário.")
+    @Operation(
+        summary = "Registrar leitura de hidratação",
+        description = "Recebe dados do dispositivo wearable. Calcula automaticamente o consumo diário acumulado, " +
+                      "percentual da meta e gera alertas (DESIDRATACAO_CRITICA, BAIXO_CONSUMO, META_ATINGIDA, CONSUMO_EXCESSIVO)."
+    )
     @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Leitura registrada"),
+        @ApiResponse(responseCode = "201", description = "Leitura registrada com métricas calculadas"),
         @ApiResponse(responseCode = "400", description = "Dados inválidos"),
         @ApiResponse(responseCode = "404", description = "Pet não encontrado")
     })
@@ -59,7 +66,7 @@ public class LeiturasWearableController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
     }
 
-    @Operation(summary = "Atualizar leitura wearable")
+    @Operation(summary = "Atualizar leitura de hidratação", description = "Recalcula métricas e alertas após a atualização")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Atualizado com sucesso"),
         @ApiResponse(responseCode = "404", description = "Leitura não encontrada")
@@ -69,7 +76,7 @@ public class LeiturasWearableController {
         return ResponseEntity.ok(service.update(id, request));
     }
 
-    @Operation(summary = "Remover leitura wearable")
+    @Operation(summary = "Remover leitura de hidratação")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Removido com sucesso"),
         @ApiResponse(responseCode = "404", description = "Leitura não encontrada")
@@ -79,4 +86,3 @@ public class LeiturasWearableController {
         return ResponseEntity.ok(service.delete(id));
     }
 }
-

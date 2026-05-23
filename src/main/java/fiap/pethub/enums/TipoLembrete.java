@@ -4,6 +4,7 @@ public enum TipoLembrete {
     VACINA,
     CONSULTA,
     EXAME,
-    MEDICAMENTO
+    MEDICAMENTO,
+    HIDRATACAO
 }
 

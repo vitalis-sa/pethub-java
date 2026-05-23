@@ -1,5 +1,6 @@
 package fiap.pethub.dto.response;
 
+import fiap.pethub.enums.TipoAlertaHidratacao;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,22 +15,30 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class LeituraWearableResponse {
 
-    @Schema(description = "Nome do pet", example = "Rex")
+    @Schema(description = "Nome do pet", example = "Mel")
     private String nomePet;
 
-    @Schema(description = "Timestamp da leitura", example = "2026-06-01T10:00:00")
+    @Schema(description = "Data e hora da leitura", example = "2026-06-01T10:00:00")
     private LocalDateTime timestamp;
 
-    @Schema(description = "Temperatura corporal em °C", example = "38.5")
-    private Double temperaturaCorporal;
+    @Schema(description = "Consumo registrado nessa leitura (ml)", example = "35.0")
+    private Double consumoMlRegistrado;
 
-    @Schema(description = "Frequência cardíaca em bpm", example = "90")
-    private Integer frequenciaCardiaca;
+    @Schema(description = "Consumo diário acumulado (ml)", example = "120.0")
+    private Double consumoDiarioAcumulado;
 
-    @Schema(description = "Indica se anomalia foi detectada", example = "false")
-    private Boolean anomaliaDetectada;
+    @Schema(description = "Meta diária de consumo (ml)", example = "240.0")
+    private Double metaDiariaML;
 
-    @Schema(description = "Tipo da anomalia detectada", example = "Taquicardia")
-    private String tipoAnomalia;
+    @Schema(description = "Percentual da meta diária atingido (%)", example = "50.0")
+    private Double percentualMeta;
+
+    @Schema(description = "Indica se um alerta foi gerado", example = "false")
+    private Boolean alertaGerado;
+
+    @Schema(description = "Tipo do alerta de hidratação", example = "BAIXO_CONSUMO")
+    private TipoAlertaHidratacao tipoAlerta;
+
+    @Schema(description = "Descrição do alerta", example = "Felino consumiu menos de 25% da meta diária.")
+    private String descricaoAlerta;
 }
-

@@ -14,6 +14,11 @@ public interface LeituraWearableMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "pet", ignore = true)
+    @Mapping(target = "consumoDiarioAcumulado", ignore = true)
+    @Mapping(target = "percentualMeta", ignore = true)
+    @Mapping(target = "alertaGerado", ignore = true)
+    @Mapping(target = "tipoAlerta", ignore = true)
+    @Mapping(target = "descricaoAlerta", ignore = true)
     LeituraWearable toEntity(LeituraWearableRequest request);
 
     @Mapping(source = "pet.nome", target = "nomePet")
@@ -21,8 +26,12 @@ public interface LeituraWearableMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "pet", ignore = true)
+    @Mapping(target = "consumoDiarioAcumulado", ignore = true)
+    @Mapping(target = "percentualMeta", ignore = true)
+    @Mapping(target = "alertaGerado", ignore = true)
+    @Mapping(target = "tipoAlerta", ignore = true)
+    @Mapping(target = "descricaoAlerta", ignore = true)
     void updateEntity(LeituraWearableRequest request, @MappingTarget LeituraWearable entity);
 
     List<LeituraWearableResponse> toResponseList(List<LeituraWearable> list);
 }
-
