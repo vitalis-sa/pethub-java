@@ -1,6 +1,6 @@
 # PetHub API
 
-Uma solução completa para o cuidado veterinário, conectando pets, tutores e clínicas em uma jornada inteligente: do agendamento de consultas ao controle de vacinas, exames, diagnósticos e lembretes, tudo em um só lugar.
+Uma solução completa para o cuidado veterinário, conectando pets, responsáveis e clínicas em uma jornada inteligente: do agendamento de consultas ao controle de vacinas, exames, diagnósticos e lembretes, tudo em um só lugar.
 
 ## Grupo
 
