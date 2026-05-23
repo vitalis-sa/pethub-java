@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateUnidadeVeterinarioRequest {
 
-    @NotNull(message = "veterinarioId é obrigatório")
     private Long veterinarioId;
 
     @NotBlank(message = "Nome é obrigatório")

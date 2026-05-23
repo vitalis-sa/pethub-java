@@ -7,6 +7,7 @@ import fiap.pethub.dto.response.VeterinarioResponse;
 import fiap.pethub.entity.Veterinario;
 import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.VeterinarioMapper;
+import fiap.pethub.repository.UnidadeVeterinarioRepository;
 import fiap.pethub.repository.VeterinarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -26,6 +27,7 @@ import java.util.stream.Stream;
 public class VeterinarioService {
 
     private final VeterinarioRepository repository;
+    private final UnidadeVeterinarioRepository unidadeRepository;
     private final VeterinarioMapper mapper;
 
     public Page<VeterinarioResponse> findAll(String nome, Boolean ativo, Pageable pageable) {
@@ -52,7 +54,9 @@ public class VeterinarioService {
     @CacheEvict(value = "veterinarios", allEntries = true)
     public VeterinarioResponse create(VeterinarioRequest request) {
         Veterinario entity = buildVeterinarioEntity(request);
-        return mapper.toResponse(repository.save(entity));
+        Veterinario saved = repository.save(entity);
+        vincularUnidade(request.getUnidadeId(), saved);
+        return mapper.toResponse(saved);
     }
 
     @Transactional
@@ -97,5 +101,14 @@ public class VeterinarioService {
     private Veterinario findEntityById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + id));
+    }
+
+    private void vincularUnidade(Long unidadeId, Veterinario vet) {
+        Optional.ofNullable(unidadeId).ifPresent(id -> {
+            var unidade = unidadeRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Unidade não encontrada com id: " + id));
+            vet.setUnidade(unidade);
+            repository.save(vet);
+        });
     }
 }

@@ -29,5 +29,7 @@ public class CreateVeterinarioRequest {
     @NotBlank(message = "Senha é obrigatória")
     @Size(min = 6, message = "Senha deve ter ao menos 6 caracteres")
     private String senha;
+
+    private Long unidadeId;
 }
 

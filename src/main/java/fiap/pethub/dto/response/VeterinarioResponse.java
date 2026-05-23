@@ -32,5 +32,8 @@ public class VeterinarioResponse {
 
     @Schema(description = "Indica se o veterinário está ativo", example = "true")
     private Boolean ativo;
+
+    @Schema(description = "Nome da unidade veterinária vinculada", example = "Clínica PetVida")
+    private String nomeUnidade;
 }
 

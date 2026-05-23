@@ -6,6 +6,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UnidadeVeterinarioRepository extends JpaRepository<UnidadeVeterinario, Long> {
-    Page<UnidadeVeterinario> findByVeterinarioId(Long veterinarioId, Pageable pageable);
+    Page<UnidadeVeterinario> findByNomeContainingIgnoreCase(String nome, Pageable pageable);
+    Page<UnidadeVeterinario> findByCidade(String cidade, Pageable pageable);
 }
-

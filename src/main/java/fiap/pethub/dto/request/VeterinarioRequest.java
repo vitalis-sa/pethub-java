@@ -31,5 +31,7 @@ public class VeterinarioRequest {
     private String senha;
 
     private Boolean ativo;
+
+    private Long unidadeId;
 }
 

@@ -14,14 +14,17 @@ public interface VeterinarioMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "ativo", ignore = true)
+    @Mapping(target = "unidade", ignore = true)
     Veterinario toEntity(VeterinarioRequest request);
 
+    @Mapping(source = "unidade.nome", target = "nomeUnidade")
     VeterinarioResponse toResponse(Veterinario veterinario);
 
     List<VeterinarioResponse> toResponseList(List<Veterinario> list);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "crmv", ignore = true)
+    @Mapping(target = "unidade", ignore = true)
     void updateEntity(VeterinarioRequest request, @MappingTarget Veterinario veterinario);
 }
 

@@ -28,13 +28,14 @@ public class UnidadesVeterinarioController {
 
     private final UnidadeVeterinarioService service;
 
-    @Operation(summary = "Listar unidades", description = "Retorna lista paginada, filtrável por veterinário")
+    @Operation(summary = "Listar unidades", description = "Retorna lista paginada, filtrável por nome ou cidade")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")})
     @GetMapping
     public ResponseEntity<Page<UnidadeVeterinarioResponse>> findAll(
-            @Parameter(description = "Filtrar por veterinário") @RequestParam(required = false) Long veterinarioId,
+            @Parameter(description = "Filtrar por nome") @RequestParam(required = false) String nome,
+            @Parameter(description = "Filtrar por cidade") @RequestParam(required = false) String cidade,
             @ParameterObject Pageable pageable) {
-        return ResponseEntity.ok(service.findAll(veterinarioId, pageable));
+        return ResponseEntity.ok(service.findAll(nome, cidade, pageable));
     }
 
     @Operation(summary = "Buscar unidade por ID")

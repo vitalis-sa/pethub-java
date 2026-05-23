@@ -3,6 +3,8 @@ package fiap.pethub.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Table(name = "TB_UNIDADE_VETERINARIO")
 @Getter
@@ -17,9 +19,8 @@ public class UnidadeVeterinario {
     @SequenceGenerator(name = "unidade_seq", sequenceName = "SQ_UNIDADE_VETERINARIO", allocationSize = 1)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "veterinario_id", nullable = false)
-    private Veterinario veterinario;
+    @OneToMany(mappedBy = "unidade", fetch = FetchType.LAZY)
+    private List<Veterinario> veterinarios;
 
     @Column(name = "nome", nullable = false)
     private String nome;
@@ -42,4 +43,3 @@ public class UnidadeVeterinario {
     @Column(name = "cep", length = 8)
     private String cep;
 }
-

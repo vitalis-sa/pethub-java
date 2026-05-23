@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Getter
 @Builder
 @NoArgsConstructor
@@ -18,8 +20,8 @@ public class UnidadeVeterinarioResponse {
     @Schema(description = "Nome da unidade/clínica", example = "Clínica PetVida")
     private String nome;
 
-    @Schema(description = "Nome do veterinário responsável", example = "Dr. Carlos Souza")
-    private String nomeVeterinario;
+    @Schema(description = "Nomes dos veterinários vinculados")
+    private List<String> nomesVeterinarios;
 
     @Schema(description = "Logradouro", example = "Rua das Flores")
     private String logradouro;

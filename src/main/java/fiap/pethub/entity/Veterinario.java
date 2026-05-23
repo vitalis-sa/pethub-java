@@ -44,5 +44,9 @@ public class Veterinario {
     @Column(name = "ativo", nullable = false)
     @Builder.Default
     private Boolean ativo = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "unidade_id")
+    private UnidadeVeterinario unidade;
 }
 
