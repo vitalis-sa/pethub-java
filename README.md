@@ -244,6 +244,11 @@ Fluxo seguindo as regras de negócio da solução.
 
 > Listagem para confirmação de informações
 
-### 13 - Criar lembrete - `POST /api/lembretes`
+### Buscar Responsável por CPF - `GET /api/responsaveis/buscar?cpf={CPF}`
+<img width="452" height="797" alt="image" src="https://github.com/user-attachments/assets/aac50b5a-ea0a-48cf-9e2e-ab84564ae394" />
 
+### Buscar Responsável por ID - `GET /api/responsaveis/{id}`
+<img width="449" height="767" alt="image" src="https://github.com/user-attachments/assets/8b6c9ba9-51cd-410e-865e-21f6bdd86af2" />
 
+### Listando Unidades Vets junto com os Veterinarios registrados - `GET /api/unidades}`
+<img width="376" height="886" alt="image" src="https://github.com/user-attachments/assets/dc1b7172-d109-4b4a-a817-260dd4200321" />
