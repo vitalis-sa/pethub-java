@@ -198,240 +198,52 @@ fiap.pethub
 | Documentação com Swagger | ✅ | OpenAPI 3.0 + Swagger UI |
 
 ## Prints das telas (Postman)
+Fluxo seguindo as regras de negócio da solução.
 
-### `GET /api/pets` – listagem completa
+### 01 - Criar unidade veterinaria - `POST /api/unidades`
+<img width="363" height="571" alt="image" src="https://github.com/user-attachments/assets/584b69f9-941f-45be-badf-9bffca58c44f" />
 
-> Em caso de sucesso
+### 02 - Criar veterinario - `POST /api/veterinarios`
+<img width="376" height="557" alt="image" src="https://github.com/user-attachments/assets/e44c2f88-2d4c-4f64-b62f-1c540a289cea" />
 
-[Espaço reservado para print]
+### 03 - Criar responsavel - `POST /api/responsaveis`
+<img width="410" height="505" alt="image" src="https://github.com/user-attachments/assets/32113249-fd3d-42cc-b5a2-01457aa3d179" />
 
-### `GET /api/pets/{id}` – busca por ID
+### 04 - Adicionar contato do responsavel - `POST /api/responsaveis/{id}/contatos`
+<img width="375" height="398" alt="image" src="https://github.com/user-attachments/assets/06355eef-2767-439e-bbf6-c97609fe8e78" />
 
-> Em caso de sucesso
+### 05 - Adicionar endereco do responsavel - `POST /api/responsaveis/{id}/enderecos`
+<img width="387" height="574" alt="image" src="https://github.com/user-attachments/assets/b9b2ec26-44a8-4894-acb1-d7ef0acaa112" />
 
-[Espaço reservado para print]
+### 06 - Criar pet - `POST /api/pets`
+<img width="443" height="572" alt="image" src="https://github.com/user-attachments/assets/c6b7f33d-8694-4f31-acc5-8e710b475d52" />
 
-> Em caso de erro
+### 07 - Criar consulta - `POST /api/consultas`
+<img width="376" height="538" alt="image" src="https://github.com/user-attachments/assets/aa97af95-9398-4760-aa5c-0eade88b003e" />
 
-[Espaço reservado para print]
+### 08 - Criar diagnostico - `POST /api/diagnosticos`
+<img width="408" height="902" alt="image" src="https://github.com/user-attachments/assets/18099359-a6e6-4e02-8d8c-6dea54bf9f60" />
 
-### `POST /api/pets` – criação com JSON
+### 09 - Criar exame - `POST /api/exames`
+<img width="411" height="493" alt="image" src="https://github.com/user-attachments/assets/0bc54a79-ad0b-4728-9a49-4753e00ed110" />
 
-> Em caso de sucesso
+### 10 - Criar pedido medico - `POST /api/pedidos-medicos`
+<img width="412" height="519" alt="image" src="https://github.com/user-attachments/assets/94be250e-0e62-4181-bbde-705bf7025646" />
 
-[Espaço reservado para print]
+### 11 - Criar vacina/tratamento - `POST /api/vacinas-tratamentos`
+<img width="435" height="564" alt="image" src="https://github.com/user-attachments/assets/040d7cf3-37c2-4d4c-8fff-72a16ec0ea72" />
 
-> Em caso de erro
+### 12 - Criar leitura wearable - `POST /api/leituras-wearable`
+<img width="356" height="506" alt="image" src="https://github.com/user-attachments/assets/20eee015-ca0c-4983-be4d-511dafbcafbe" />
 
-[Espaço reservado para print]
+### 13 - Criar lembrete - `POST /api/lembretes`
+<img width="419" height="608" alt="image" src="https://github.com/user-attachments/assets/0eab360e-61bf-4e13-a560-0b8e48bc1f7a" />
 
-### `PUT /api/pets/{id}` – atualização
+### 14 - Atualizar status do lembrete - `PATCH /api/lembretes/1/status?status={status}`
+<img width="440" height="547" alt="image" src="https://github.com/user-attachments/assets/2e197512-fd7c-4a60-b587-2ac3af0548ad" />
 
-> Em caso de sucesso
+> Listagem para confirmação de informações
 
-[Espaço reservado para print]
+### 13 - Criar lembrete - `POST /api/lembretes`
 
-> Em caso de erro
 
-[Espaço reservado para print]
-
-### `DELETE /api/pets/{id}` – deleção
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-> Em caso de erro
-
-[Espaço reservado para print]
-
-### `GET /api/consultas` – listagem paginada
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-### `POST /api/consultas` – criação
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-> Em caso de erro
-
-[Espaço reservado para print]
-
-### `GET /api/exames` – listagem
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-### `POST /api/exames` – criação
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-> Em caso de erro
-
-[Espaço reservado para print]
-
-### `GET /api/diagnosticos` – listagem
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-### `POST /api/diagnosticos` – criação
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-> Em caso de erro
-
-[Espaço reservado para print]
-
-### `GET /api/leituras-wearable` – listagem
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-### `POST /api/leituras-wearable` – criação
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-> Em caso de erro
-
-[Espaço reservado para print]
-
-### `GET /api/pedidos-medicos` – listagem
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-### `POST /api/pedidos-medicos` – criação
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-> Em caso de erro
-
-[Espaço reservado para print]
-
-### `GET /api/responsaveis/buscar?cpf=` – busca por CPF
-
-> Em caso de sucesso
-
-[Espaço reservado para print]
-
-> Em caso de erro
-
-[Espaço reservado para print]
-
-### POST /api/pets – Criar pet
-
-```json
-{
-  "nome": "Rex",
-  "dataNascimento": "2022-01-15",
-  "responsavelId": 1,
-  "veterinarioId": 1
-}
-```
-
-### PUT /api/pets/{id} – Atualizar pet
-
-```json
-{
-  "nome": "Rex Junior",
-  "dataNascimento": "2022-01-15",
-  "responsavelId": 1,
-  "veterinarioId": 2
-}
-```
-
-### Resposta (GET, POST, PUT)
-
-```json
-{
-  "id": 1,
-  "nome": "Rex",
-  "dataNascimento": "2022-01-15",
-  "responsavelId": 1,
-  "veterinarioId": 1
-}
-```
-
-### Resposta de erro – recurso não encontrado (404)
-
-```json
-{
-  "status": 404,
-  "message": "Pet não encontrado com id: 99"
-}
-```
-
-### Resposta de erro – validação (400)
-
-```json
-{
-  "status": 400,
-  "message": "Erro de validação",
-  "errors": [
-    {
-      "field": "nome",
-      "message": "Nome é obrigatório"
-    },
-    {
-      "field": "dataNascimento",
-      "message": "Data de nascimento é obrigatória"
-    }
-  ]
-}
-```
-
-### POST /api/consultas – Criar consulta
-
-```json
-{
-  "dataHora": "2025-05-30T14:30:00",
-  "tipo": "ROTINA",
-  "status": "AGENDADA",
-  "petId": 1,
-  "veterinarioId": 1
-}
-```
-
-### Resposta GET /api/consultas (listagem paginada)
-
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "dataHora": "2025-05-30T14:30:00",
-      "tipo": "ROTINA",
-      "status": "AGENDADA",
-      "petId": 1,
-      "veterinarioId": 1
-    }
-  ],
-  "pageable": {
-    "pageNumber": 0,
-    "pageSize": 10,
-    "sort": []
-  },
-  "totalElements": 1,
-  "totalPages": 1,
-  "first": true,
-  "last": true,
-  "empty": false
-}
-```
