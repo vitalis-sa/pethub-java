@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class DiagnosticoResponse {
 
+    @Schema(description = "Identificador do diagnóstico", example = "1")
+    private Long id;
+
     @Schema(description = "Nome do pet", example = "Rex")
     private String nomePet;
 

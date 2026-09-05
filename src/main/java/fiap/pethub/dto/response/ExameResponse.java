@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ExameResponse {
 
+    @Schema(description = "Identificador do exame", example = "1")
+    private Long id;
+
     @Schema(description = "Tipo do exame", example = "Hemograma")
     private String tipo;
 

@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class PedidoMedicoResponse {
 
+    @Schema(description = "Identificador do pedido médico", example = "1")
+    private Long id;
+
     @Schema(description = "Tipo do pedido", example = "EXAME")
     private TipoPedidoMedico tipo;
 

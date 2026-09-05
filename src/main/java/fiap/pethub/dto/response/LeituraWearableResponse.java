@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class LeituraWearableResponse {
 
+    @Schema(description = "Identificador da leitura", example = "1")
+    private Long id;
+
     @Schema(description = "Nome do pet", example = "Mel")
     private String nomePet;
 

@@ -15,6 +15,9 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class VacinaTratamentoResponse {
 
+    @Schema(description = "Identificador da vacina ou tratamento", example = "1")
+    private Long id;
+
     @Schema(description = "Tipo", example = "VACINA")
     private TipoVacinaTratamento tipo;
 
