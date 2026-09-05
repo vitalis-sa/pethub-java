@@ -1,6 +1,6 @@
 package fiap.pethub.service;
 
-import fiap.pethub.config.PasswordUtil;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import fiap.pethub.dto.request.ResponsavelContatoRequest;
 import fiap.pethub.dto.request.ResponsavelEnderecoRequest;
 import fiap.pethub.dto.request.ResponsavelRequest;
@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 public class ResponsavelService {
 
     private final ResponsavelRepository repository;
+    private final PasswordEncoder passwordEncoder;
     private final ResponsavelContatoRepository contatoRepository;
     private final ResponsavelEnderecoRepository enderecoRepository;
     private final ResponsavelMapper mapper;
@@ -65,7 +66,7 @@ public class ResponsavelService {
     @CacheEvict(value = "responsaveis", allEntries = true)
     public ResponsavelResponse create(ResponsavelRequest request) {
         Responsavel responsavel = mapper.toEntity(request);
-        responsavel.setSenha(PasswordUtil.encode(request.getSenha()));
+        responsavel.setSenha(passwordEncoder.encode(request.getSenha()));
         responsavel.setAtivo(request.getAtivo() != null ? request.getAtivo() : true);
         responsavel.setCreatedAt(LocalDateTime.now());
         return mapper.toResponse(repository.save(responsavel));
@@ -77,7 +78,7 @@ public class ResponsavelService {
         Responsavel responsavel = findEntityById(id);
         mapper.updateEntity(request, responsavel);
         if (request.getSenha() != null && !request.getSenha().isBlank()) {
-            responsavel.setSenha(PasswordUtil.encode(request.getSenha()));
+            responsavel.setSenha(passwordEncoder.encode(request.getSenha()));
         }
         return mapper.toResponse(repository.save(responsavel));
     }

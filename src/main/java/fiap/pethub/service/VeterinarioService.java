@@ -1,6 +1,6 @@
 package fiap.pethub.service;
 
-import fiap.pethub.config.PasswordUtil;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import fiap.pethub.dto.request.VeterinarioRequest;
 import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.VeterinarioResponse;
@@ -27,6 +27,7 @@ import java.util.stream.Stream;
 public class VeterinarioService {
 
     private final VeterinarioRepository repository;
+    private final PasswordEncoder passwordEncoder;
     private final UnidadeVeterinarioRepository unidadeRepository;
     private final VeterinarioMapper mapper;
 
@@ -82,7 +83,7 @@ public class VeterinarioService {
 
     private Veterinario buildVeterinarioEntity(VeterinarioRequest request) {
         Veterinario entity = mapper.toEntity(request);
-        entity.setSenha(PasswordUtil.encode(request.getSenha()));
+        entity.setSenha(passwordEncoder.encode(request.getSenha()));
         entity.setAtivo(request.getAtivo() != null ? request.getAtivo() : true);
         return entity;
     }
@@ -90,7 +91,7 @@ public class VeterinarioService {
     private void applySenha(String senha, Veterinario entity) {
         Optional.ofNullable(senha)
                 .filter(s -> !s.isBlank())
-                .map(PasswordUtil::encode)
+                .map(passwordEncoder::encode)
                 .ifPresent(entity::setSenha);
     }
 
