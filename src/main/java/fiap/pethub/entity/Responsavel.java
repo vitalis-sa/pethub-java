@@ -26,7 +26,7 @@ public class Responsavel {
     @Column(name = "CPF", length = 11, nullable = false, unique = true)
     private String cpf;
 
-    @Column(name = "EMAIL", nullable = false)
+    @Column(name = "EMAIL", nullable = false, unique = true)
     private String email;
 
     @Column(name = "SENHA", nullable = false)

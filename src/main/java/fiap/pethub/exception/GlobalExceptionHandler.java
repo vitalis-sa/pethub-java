@@ -2,6 +2,7 @@ package fiap.pethub.exception;
 
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.AuthenticationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -55,6 +56,23 @@ public class GlobalExceptionHandler {
                 .toList();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ValidationErrorResponse(HttpStatus.BAD_REQUEST.value(), "Parâmetro inválido", errors));
+    }
+
+    @ExceptionHandler(EmailJaCadastradoException.class)
+    public ResponseEntity<ErrorResponse> handleEmailDuplicado(EmailJaCadastradoException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage()));
+    }
+
+    /**
+     * Não distinguimos "senha errada" de "email inexistente" na resposta: dizer
+     * qual dos dois falhou permitiria descobrir quais emails estão cadastrados.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleFalhaDeAutenticacao(AuthenticationException ex) {
+        log.warn("Autenticação recusada: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse(HttpStatus.UNAUTHORIZED.value(), "Credenciais inválidas"));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

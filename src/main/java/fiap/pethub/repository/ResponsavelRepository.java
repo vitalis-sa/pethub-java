@@ -9,6 +9,8 @@ import java.util.Optional;
 
 public interface ResponsavelRepository extends JpaRepository<Responsavel, Long> {
     Optional<Responsavel> findByCpf(String cpf);
+
+    Optional<Responsavel> findByEmail(String email);
     Page<Responsavel> findByNomeContainingIgnoreCase(String nome, Pageable pageable);
     Page<Responsavel> findByAtivo(Boolean ativo, Pageable pageable);
     Page<Responsavel> findByNomeContainingIgnoreCaseAndAtivo(String nome, Boolean ativo, Pageable pageable);
