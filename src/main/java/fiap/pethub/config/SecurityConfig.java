@@ -10,6 +10,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -59,6 +60,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
+                // Sem isto, o preflight do navegador — que chega sem token, por
+                // definição — é barrado aqui antes de alcançar as regras de CORS
+                // do WebConfig, e toda chamada autenticada falha no browser.
+                .cors(Customizer.withDefaults())
                 // A API não usa cookie de sessão, então não há o que um site
                 // terceiro possa forjar: CSRF não se aplica.
                 .csrf(csrf -> csrf.disable())
