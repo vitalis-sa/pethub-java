@@ -31,8 +31,8 @@ Uma solução completa para o cuidado veterinário, conectando pets, responsáve
 
 ## Como executar
 
-1. Configure o `application.properties` com suas credenciais Oracle (não versionado)
-2. Execute: `mvn spring-boot:run`
+1. Copie `.env.example` para `.env` e preencha `DB_USER`, `DB_PASSWORD` (credenciais Oracle da FIAP) e `JWT_SECRET` (qualquer string aleatória com 32+ caracteres)
+2. Execute: `.\run.ps1` (PowerShell — carrega o `.env` e roda a aplicação) ou `mvn spring-boot:run` exportando as mesmas variáveis manualmente
 3. API disponível em: `http://localhost:8080`
 4. Documentação Swagger em: `http://localhost:8080/swagger-ui.html`
 
