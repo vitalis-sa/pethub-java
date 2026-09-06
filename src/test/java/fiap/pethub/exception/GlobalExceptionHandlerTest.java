@@ -49,6 +49,17 @@ class GlobalExceptionHandlerTest {
         assertThat(statusPara(metodoErrado)).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
     }
 
+    /**
+     * Recurso alheio responde 404, nao 403: 403 confirmaria que aquele id
+     * existe e permitiria enumerar o banco tutor por tutor.
+     */
+    @Test
+    void recursoDeOutroUsuarioVira404ENao403() throws Exception {
+        var alheio = new AcessoNegadoException("Recurso nao encontrado");
+
+        assertThat(statusPara(alheio)).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     @Test
     void falhaInesperadaContinuaVirando500() throws Exception {
         assertThat(statusPara(new IllegalStateException("boom")))

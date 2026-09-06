@@ -12,6 +12,7 @@ import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.VacinaTratamentoMapper;
 import fiap.pethub.repository.ConsultaRepository;
 import fiap.pethub.repository.PetRepository;
+import fiap.pethub.security.EscopoDoUsuario;
 import fiap.pethub.repository.VacinaTratamentoRepository;
 import fiap.pethub.repository.VeterinarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,9 +37,13 @@ public class VacinaTratamentoService {
     private final VeterinarioRepository veterinarioRepository;
     private final ConsultaRepository consultaRepository;
     private final VacinaTratamentoMapper mapper;
+    private final EscopoDoUsuario escopo;
     private final LembreteService lembreteService;
 
     public Page<VacinaTratamentoResponse> findAll(Long petId, TipoVacinaTratamento tipo, Pageable pageable) {
+        if (petId != null) {
+            exigirPosseDoPet(petId);
+        }
         return Stream.<Map.Entry<Boolean, Supplier<Page<VacinaTratamento>>>>of(
                 Map.entry(petId != null && tipo != null, () -> repository.findByPetIdAndTipo(petId, tipo, pageable)),
                 Map.entry(petId != null,                 () -> repository.findByPetId(petId, pageable))
@@ -47,15 +52,15 @@ public class VacinaTratamentoService {
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .map(Supplier::get)
-                .orElseGet(() -> repository.findAll(pageable))
+                .orElseGet(listarNoEscopo(pageable))
                 .map(mapper::toResponse);
     }
 
-    @Cacheable(value = "vacinas", key = "#id")
+    @Cacheable(value = "vacinas", key = "#id + '-' + @escopoDoUsuario.chaveDeCache()")
     public VacinaTratamentoResponse findById(Long id) {
-        return repository.findById(id)
-                .map(mapper::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacina/Tratamento não encontrado com id: " + id));
+        VacinaTratamento entidade = findEntityById(id);
+        escopo.exigirPosse(entidade.getPet().getResponsavel().getId());
+        return mapper.toResponse(entidade);
     }
 
     @Transactional
@@ -68,21 +73,20 @@ public class VacinaTratamentoService {
     }
 
     @Transactional
-    @CacheEvict(value = "vacinas", key = "#id")
+    @CacheEvict(value = "vacinas", allEntries = true)
     public VacinaTratamentoResponse update(Long id, VacinaTratamentoRequest request) {
         VacinaTratamento entity = findEntityById(id);
+        escopo.exigirPosse(entity.getPet().getResponsavel().getId());
         mapper.updateEntity(request, entity);
         return mapper.toResponse(repository.save(entity));
     }
 
     @Transactional
-    @CacheEvict(value = "vacinas", key = "#id")
+    @CacheEvict(value = "vacinas", allEntries = true)
     public DeleteResponse delete(Long id) {
-        repository.findById(id)
-                .ifPresentOrElse(
-                        repository::delete,
-                        () -> { throw new ResourceNotFoundException("Vacina/Tratamento não encontrado com id: " + id); }
-                );
+        VacinaTratamento entidade = findEntityById(id);
+        escopo.exigirPosse(entidade.getPet().getResponsavel().getId());
+        repository.delete(entidade);
         return DeleteResponse.of("Vacina/Tratamento", id);
     }
 
@@ -125,6 +129,18 @@ public class VacinaTratamentoService {
     private Veterinario findVeterinario(Long veterinarioId) {
         return veterinarioRepository.findById(veterinarioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + veterinarioId));
+    }
+
+    /** Lista respeitando o escopo: veterinario ve tudo, responsavel so os pets dele. */
+    private Supplier<Page<VacinaTratamento>> listarNoEscopo(Pageable pageable) {
+        return () -> escopo.ehVeterinario()
+                ? repository.findAll(pageable)
+                : repository.findByPetResponsavelId(escopo.idDoResponsavel(), pageable);
+    }
+
+    /** Filtrar por um pet alheio nao pode revelar sequer que ele existe. */
+    private void exigirPosseDoPet(Long petId) {
+        escopo.exigirPosse(findPet(petId).getResponsavel().getId());
     }
 
     private VacinaTratamento findEntityById(Long id) {

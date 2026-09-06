@@ -12,6 +12,7 @@ import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.ConsultaMapper;
 import fiap.pethub.repository.ConsultaRepository;
 import fiap.pethub.repository.PetRepository;
+import fiap.pethub.security.EscopoDoUsuario;
 import fiap.pethub.repository.UnidadeVeterinarioRepository;
 import fiap.pethub.repository.VeterinarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +36,13 @@ public class ConsultaService {
     private final VeterinarioRepository veterinarioRepository;
     private final UnidadeVeterinarioRepository unidadeRepository;
     private final ConsultaMapper mapper;
+    private final EscopoDoUsuario escopo;
     private final LembreteService lembreteService;
 
     public Page<ConsultaResponse> findAll(Long petId, Long veterinarioId, StatusConsulta status, Pageable pageable) {
+        if (petId != null) {
+            exigirPosseDoPet(petId);
+        }
         return Stream.<Map.Entry<Boolean, Supplier<Page<Consulta>>>>of(
                 Map.entry(petId != null && status != null, () -> repository.findByPetIdAndStatus(petId, status, pageable)),
                 Map.entry(petId != null,                   () -> repository.findByPetId(petId, pageable)),
@@ -48,15 +53,15 @@ public class ConsultaService {
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .map(Supplier::get)
-                .orElseGet(() -> repository.findAll(pageable))
+                .orElseGet(listarNoEscopo(pageable))
                 .map(mapper::toResponse);
     }
 
-    @Cacheable(value = "consultas", key = "#id")
+    @Cacheable(value = "consultas", key = "#id + '-' + @escopoDoUsuario.chaveDeCache()")
     public ConsultaResponse findById(Long id) {
-        return repository.findById(id)
-                .map(mapper::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com id: " + id));
+        Consulta entidade = findEntityById(id);
+        escopo.exigirPosse(entidade.getPet().getResponsavel().getId());
+        return mapper.toResponse(entidade);
     }
 
     @Transactional
@@ -69,22 +74,21 @@ public class ConsultaService {
     }
 
     @Transactional
-    @CacheEvict(value = "consultas", key = "#id")
+    @CacheEvict(value = "consultas", allEntries = true)
     public ConsultaResponse update(Long id, ConsultaRequest request) {
         Consulta entity = findEntityById(id);
+        escopo.exigirPosse(entity.getPet().getResponsavel().getId());
         mapper.updateEntity(request, entity);
         applyUnidade(request.getUnidadeId(), entity);
         return mapper.toResponse(repository.save(entity));
     }
 
     @Transactional
-    @CacheEvict(value = "consultas", key = "#id")
+    @CacheEvict(value = "consultas", allEntries = true)
     public DeleteResponse delete(Long id) {
-        repository.findById(id)
-                .ifPresentOrElse(
-                        repository::delete,
-                        () -> { throw new ResourceNotFoundException("Consulta não encontrada com id: " + id); }
-                );
+        Consulta entidade = findEntityById(id);
+        escopo.exigirPosse(entidade.getPet().getResponsavel().getId());
+        repository.delete(entidade);
         return DeleteResponse.of("Consulta", id);
     }
 
@@ -125,6 +129,18 @@ public class ConsultaService {
     private Veterinario findVeterinario(Long veterinarioId) {
         return veterinarioRepository.findById(veterinarioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + veterinarioId));
+    }
+
+    /** Lista respeitando o escopo: veterinario ve tudo, responsavel so os pets dele. */
+    private Supplier<Page<Consulta>> listarNoEscopo(Pageable pageable) {
+        return () -> escopo.ehVeterinario()
+                ? repository.findAll(pageable)
+                : repository.findByPetResponsavelId(escopo.idDoResponsavel(), pageable);
+    }
+
+    /** Filtrar por um pet alheio nao pode revelar sequer que ele existe. */
+    private void exigirPosseDoPet(Long petId) {
+        escopo.exigirPosse(findPet(petId).getResponsavel().getId());
     }
 
     private Consulta findEntityById(Long id) {

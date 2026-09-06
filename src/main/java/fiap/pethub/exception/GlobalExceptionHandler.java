@@ -58,6 +58,18 @@ public class GlobalExceptionHandler {
                 .body(new ValidationErrorResponse(HttpStatus.BAD_REQUEST.value(), "Parâmetro inválido", errors));
     }
 
+    /**
+     * Recurso que existe mas pertence a outro usuário responde 404, e não 403,
+     * porque 403 confirmaria a existência do id e permitiria enumerar o banco.
+     * A mensagem é deliberadamente idêntica à de recurso inexistente.
+     */
+    @ExceptionHandler(AcessoNegadoException.class)
+    public ResponseEntity<ErrorResponse> handleAcessoNegado(AcessoNegadoException ex) {
+        log.warn("Acesso negado a recurso de outro usuário: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), "Recurso não encontrado"));
+    }
+
     @ExceptionHandler(EmailJaCadastradoException.class)
     public ResponseEntity<ErrorResponse> handleEmailDuplicado(EmailJaCadastradoException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

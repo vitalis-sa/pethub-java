@@ -11,6 +11,7 @@ import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.LeituraWearableMapper;
 import fiap.pethub.repository.LeituraWearableRepository;
 import fiap.pethub.repository.PetRepository;
+import fiap.pethub.security.EscopoDoUsuario;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -35,24 +36,28 @@ public class LeituraWearableService {
     private final PetRepository petRepository;
     private final LeituraWearableMapper mapper;
     private final LembreteService lembreteService;
+    private final EscopoDoUsuario escopo;
 
     public Page<LeituraWearableResponse> findAll(Long petId, Boolean apenasAlertas, Pageable pageable) {
+        if (petId != null) {
+            exigirPosseDoPet(petId);
+        }
         boolean filtroPet    = petId != null;
         boolean filtroAlerta = Boolean.TRUE.equals(apenasAlertas);
 
         Page<LeituraWearable> resultado = filtroPet && filtroAlerta ? repository.findByPetIdAndAlertaGeradoTrue(petId, pageable)
                                         : filtroPet                ? repository.findByPetId(petId, pageable)
                                         : filtroAlerta             ? repository.findByAlertaGeradoTrue(pageable)
-                                                                   : repository.findAll(pageable);
+                                                                   : listarNoEscopo(pageable);
 
         return resultado.map(mapper::toResponse);
     }
 
-    @Cacheable(value = "leituras", key = "#id")
+    @Cacheable(value = "leituras", key = "#id + '-' + @escopoDoUsuario.chaveDeCache()")
     public LeituraWearableResponse findById(Long id) {
-        return repository.findById(id)
-                .map(mapper::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("Leitura não encontrada com id: " + id));
+        LeituraWearable leitura = findEntityById(id);
+        escopo.exigirPosse(leitura.getPet().getResponsavel().getId());
+        return mapper.toResponse(leitura);
     }
 
     @Transactional
@@ -62,22 +67,21 @@ public class LeituraWearableService {
     }
 
     @Transactional
-    @CacheEvict(value = "leituras", key = "#id")
+    @CacheEvict(value = "leituras", allEntries = true)
     public LeituraWearableResponse update(Long id, LeituraWearableRequest request) {
         LeituraWearable entity = findEntityById(id);
+        escopo.exigirPosse(entity.getPet().getResponsavel().getId());
         mapper.updateEntity(request, entity);
         recalcularMetricas(entity);
         return mapper.toResponse(repository.save(entity));
     }
 
     @Transactional
-    @CacheEvict(value = "leituras", key = "#id")
+    @CacheEvict(value = "leituras", allEntries = true)
     public DeleteResponse delete(Long id) {
-        repository.findById(id)
-                .ifPresentOrElse(
-                        repository::delete,
-                        () -> { throw new ResourceNotFoundException("Leitura não encontrada com id: " + id); }
-                );
+        LeituraWearable entidade = findEntityById(id);
+        escopo.exigirPosse(entidade.getPet().getResponsavel().getId());
+        repository.delete(entidade);
         return DeleteResponse.of("Leitura wearable", id);
     }
 
@@ -151,6 +155,18 @@ public class LeituraWearableService {
     private Pet findPet(Long petId) {
         return petRepository.findById(petId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + petId));
+    }
+
+    /** Lista respeitando o escopo: veterinario ve tudo, responsavel so os pets dele. */
+    private Page<LeituraWearable> listarNoEscopo(Pageable pageable) {
+        return escopo.ehVeterinario()
+                ? repository.findAll(pageable)
+                : repository.findByPetResponsavelId(escopo.idDoResponsavel(), pageable);
+    }
+
+    /** Filtrar por um pet alheio nao pode revelar sequer que ele existe. */
+    private void exigirPosseDoPet(Long petId) {
+        escopo.exigirPosse(findPet(petId).getResponsavel().getId());
     }
 
     private LeituraWearable findEntityById(Long id) {

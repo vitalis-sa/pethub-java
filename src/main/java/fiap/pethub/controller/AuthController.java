@@ -8,6 +8,7 @@ import fiap.pethub.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class AuthController {
 
     private final AuthService service;
 
+    @SecurityRequirements
     @Operation(summary = "Autenticar",
             description = "Devolve o token JWT a ser enviado no cabeçalho Authorization: Bearer")
     @ApiResponses({
@@ -39,6 +41,7 @@ public class AuthController {
         return ResponseEntity.ok(service.autenticar(request));
     }
 
+    @SecurityRequirements
     @Operation(summary = "Cadastrar responsável",
             description = "Cria o tutor e já devolve o token, dispensando um login em seguida")
     @ApiResponses({
@@ -52,6 +55,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.registrarResponsavel(request));
     }
 
+    @SecurityRequirements
     @Operation(summary = "Cadastrar veterinário",
             description = "Cria o veterinário e já devolve o token, dispensando um login em seguida")
     @ApiResponses({

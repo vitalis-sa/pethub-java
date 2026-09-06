@@ -11,6 +11,7 @@ import fiap.pethub.mapper.DiagnosticoMapper;
 import fiap.pethub.repository.ConsultaRepository;
 import fiap.pethub.repository.DiagnosticoRepository;
 import fiap.pethub.repository.PetRepository;
+import fiap.pethub.security.EscopoDoUsuario;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -32,8 +33,12 @@ public class DiagnosticoService {
     private final ConsultaRepository consultaRepository;
     private final PetRepository petRepository;
     private final DiagnosticoMapper mapper;
+    private final EscopoDoUsuario escopo;
 
     public Page<DiagnosticoResponse> findAll(Long petId, Long consultaId, Pageable pageable) {
+        if (petId != null) {
+            exigirPosseDoPet(petId);
+        }
         return Stream.<Map.Entry<Boolean, Supplier<Page<Diagnostico>>>>of(
                 Map.entry(petId != null,     () -> repository.findByPetId(petId, pageable)),
                 Map.entry(consultaId != null, () -> repository.findByConsultaId(consultaId, pageable))
@@ -42,15 +47,15 @@ public class DiagnosticoService {
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .map(Supplier::get)
-                .orElseGet(() -> repository.findAll(pageable))
+                .orElseGet(listarNoEscopo(pageable))
                 .map(mapper::toResponse);
     }
 
-    @Cacheable(value = "diagnosticos", key = "#id")
+    @Cacheable(value = "diagnosticos", key = "#id + '-' + @escopoDoUsuario.chaveDeCache()")
     public DiagnosticoResponse findById(Long id) {
-        return repository.findById(id)
-                .map(mapper::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("Diagnóstico não encontrado com id: " + id));
+        Diagnostico entidade = findEntityById(id);
+        escopo.exigirPosse(entidade.getPet().getResponsavel().getId());
+        return mapper.toResponse(entidade);
     }
 
     @Transactional
@@ -61,21 +66,20 @@ public class DiagnosticoService {
     }
 
     @Transactional
-    @CacheEvict(value = "diagnosticos", key = "#id")
+    @CacheEvict(value = "diagnosticos", allEntries = true)
     public DiagnosticoResponse update(Long id, DiagnosticoRequest request) {
         Diagnostico entity = findEntityById(id);
+        escopo.exigirPosse(entity.getPet().getResponsavel().getId());
         mapper.updateEntity(request, entity);
         return mapper.toResponse(repository.save(entity));
     }
 
     @Transactional
-    @CacheEvict(value = "diagnosticos", key = "#id")
+    @CacheEvict(value = "diagnosticos", allEntries = true)
     public DeleteResponse delete(Long id) {
-        repository.findById(id)
-                .ifPresentOrElse(
-                        repository::delete,
-                        () -> { throw new ResourceNotFoundException("Diagnóstico não encontrado com id: " + id); }
-                );
+        Diagnostico entidade = findEntityById(id);
+        escopo.exigirPosse(entidade.getPet().getResponsavel().getId());
+        repository.delete(entidade);
         return DeleteResponse.of("Diagnóstico", id);
     }
 
@@ -107,6 +111,18 @@ public class DiagnosticoService {
     private Pet findPet(Long petId) {
         return petRepository.findById(petId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + petId));
+    }
+
+    /** Lista respeitando o escopo: veterinario ve tudo, responsavel so os pets dele. */
+    private Supplier<Page<Diagnostico>> listarNoEscopo(Pageable pageable) {
+        return () -> escopo.ehVeterinario()
+                ? repository.findAll(pageable)
+                : repository.findByPetResponsavelId(escopo.idDoResponsavel(), pageable);
+    }
+
+    /** Filtrar por um pet alheio nao pode revelar sequer que ele existe. */
+    private void exigirPosseDoPet(Long petId) {
+        escopo.exigirPosse(findPet(petId).getResponsavel().getId());
     }
 
     private Diagnostico findEntityById(Long id) {
