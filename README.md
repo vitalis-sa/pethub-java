@@ -21,101 +21,383 @@ Uma solução completa para o cuidado veterinário, conectando pets, responsáve
 | Maven | Gerenciador de dependências e build do projeto; responsável por baixar bibliotecas e compilar o código |
 | Spring Data JPA | Abstrai o acesso ao banco de dados, gerando automaticamente as queries SQL a partir de interfaces como JpaRepository |
 | Oracle Database (FIAP) | Banco de dados relacional utilizado para persistir os registros de pets, consultas, exames e outros dados da clínica |
+| Flyway | Controle de versão do schema: aplica as migrations de `db/migration` no boot e registra o que já rodou na tabela `flyway_schema_history` |
+| Spring Security | Autenticação e autorização da API: filtro JWT stateless, regras de acesso por rota e perfil, e BCrypt para o hash das senhas |
+| JJWT (jjwt-api/impl/jackson) | Emissão e verificação dos tokens JWT assinados em HS256 |
 | Caffeine Cache | Cache in-memory com expiração de 10 minutos e limite de 500 entradas para otimizar leituras frequentes |
 | Lombok | Elimina código repetitivo (boilerplate) gerando automaticamente getters, setters, construtores e toString via anotações como @Data, @RequiredArgsConstructor |
 | MapStruct | Gera o código de conversão entre entidades e DTOs (entrada/saída) sem precisar escrever mapeamentos manualmente |
 | Spring Validation | Valida os dados recebidos nas requisições com anotações como @NotBlank, @NotNull e @Size, retornando erros 400 automaticamente quando inválidos |
 | Springdoc OpenAPI | Gera documentação automaticamente e fornece interface Swagger UI para testar os endpoints |
-| Spring Security Crypto | Fornece BCrypt para hash de senhas de forma segura |
+| Spring Scheduling | Agenda a rotina diária que apura o consumo de água de cada pet e dispara alerta de desidratação |
 
+## Instalação
 
-## Como executar
+Pré-requisitos:
 
-1. Copie `.env.example` para `.env` e preencha `DB_USER`, `DB_PASSWORD` (credenciais Oracle da FIAP) e `JWT_SECRET` (qualquer string aleatória com 32+ caracteres)
-2. Execute: `.\run.ps1` (PowerShell — carrega o `.env` e roda a aplicação) ou `mvn spring-boot:run` exportando as mesmas variáveis manualmente
-3. API disponível em: `http://localhost:8080`
-4. Documentação Swagger em: `http://localhost:8080/swagger-ui.html`
+- **JDK 21** (`java -version` deve responder 21)
+- Acesso ao **Oracle da FIAP** (usuário RM e senha), ou a outro Oracle informado em `DB_URL`
+- Maven não precisa ser instalado: o projeto traz o wrapper (`mvnw` / `mvnw.cmd`)
+
+```bash
+git clone https://github.com/vitalis-sa/pethub-java.git
+cd pethub-java
+cp .env.example .env
+```
+
+Preencha o `.env` recém-criado:
+
+| Variável | Obrigatória | Para que serve |
+|---|---|---|
+| `DB_USER` | sim | Usuário do Oracle (o RM) |
+| `DB_PASSWORD` | sim | Senha do Oracle |
+| `JWT_SECRET` | sim | Segredo que assina os tokens. **Mínimo de 32 caracteres**, senão o HS256 recusa a chave e a aplicação não sobe. Gere um com `openssl rand -base64 32` |
+| `DB_URL` | não | Só para apontar para outro banco. Sem ela, usa `jdbc:oracle:thin:@oracle.fiap.com.br:1521/orcl` |
+
+O `.env` **não é versionado** (está no `.gitignore`); o `.env.example` é a referência de quais
+variáveis existem. Nenhuma credencial fica no código-fonte.
+
+## Execução
+
+```powershell
+.\run.ps1
+```
+
+O script carrega o `.env`, avisa se faltar alguma variável obrigatória e chama o Maven. Também
+funciona rodar direto — a classe `ConfiguracaoDotenv` lê o `.env` da raiz no boot, então tanto o
+Maven quanto a IDE encontram as variáveis sozinhos:
+
+```bash
+./mvnw spring-boot:run
+```
+
+Para empacotar e rodar o jar, ou subir em container:
+
+```bash
+./mvnw clean package
+java -jar target/pethub-0.0.1-SNAPSHOT.jar
+```
+
+Há também um `docker-compose.yml` que sobe a aplicação **e** um Oracle XE local, lendo o mesmo
+`.env`. Nesse caminho, preencha também `ORACLE_PWD` e aponte
+`DB_URL=jdbc:oracle:thin:@//oracle-db:1521/XEPDB1`, senão o container continuará falando com o
+Oracle da FIAP:
+
+```bash
+docker compose up --build
+```
+
+Ao subir, a aplicação:
+
+1. aplica as migrations do Flyway no schema (ver [Migrations](#migrations-flyway));
+2. valida se as entidades JPA batem com as tabelas (`ddl-auto=validate`);
+3. sobe em `http://localhost:8080`.
+
+| Recurso | URL |
+|---|---|
+| API | `http://localhost:8080` |
+| Swagger UI | `http://localhost:8080/swagger-ui.html` |
+| OpenAPI JSON | `http://localhost:8080/api-docs` |
+
+## Acesso à aplicação
+
+**Toda rota fora de `/api/auth/**` e do Swagger exige um token JWT.** Sem o cabeçalho
+`Authorization`, a resposta é `401`. Este é o caminho mais curto do zero até uma chamada
+autenticada.
+
+### 1. Criar uma conta
+
+Não existe usuário pré-cadastrado — o primeiro acesso passa por um dos dois cadastros públicos:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/registrar/veterinario \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"Dra. Ana","crmv":"SP-12345","email":"ana@pethub.com","senha":"senha123","especialidade":"Clínica geral","ativo":true}'
+```
+
+```bash
+curl -X POST http://localhost:8080/api/auth/registrar/responsavel \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"João Silva","cpf":"12345678901","email":"joao@email.com","senha":"senha123","ativo":true}'
+```
+
+O cadastro já devolve o token, dispensando um login em seguida. A senha é gravada com hash BCrypt
+e nunca volta em nenhuma resposta.
+
+### 2. Autenticar
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ana@pethub.com","senha":"senha123"}'
+```
+
+Resposta (`200`):
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "perfil": "VETERINARIO",
+  "nome": "Dra. Ana",
+  "id": 1
+}
+```
+
+Credencial errada ou cadastro inativo devolve `401`.
+
+### 3. Chamar a API com o token
+
+O token vale **8 horas** (`pethub.jwt.validade=PT8H`) e vai no cabeçalho `Authorization`, com o
+prefixo `Bearer`:
+
+```bash
+curl http://localhost:8080/api/pets \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
+```
+
+### 4. Pelo Swagger UI
+
+1. Abra `http://localhost:8080/swagger-ui.html`
+2. Em **Autenticação**, execute `POST /api/auth/login` e copie o valor de `token`
+3. Clique no botão **Authorize** (canto superior direito) e cole **só o token**, sem escrever `Bearer`
+4. A partir daí todo *Try it out* já envia o cabeçalho sozinho
+
+### O que cada resposta de erro significa
+
+| Status | Significado | O que fazer |
+|---|---|---|
+| `401` | Sem token, token expirado ou assinatura inválida | Refaça o login |
+| `403` | Token válido, mas o perfil não tem permissão para a operação | Use uma conta de veterinário |
+| `404` | Recurso inexistente **ou** de outro responsável | Confira o id; um responsável não enxerga dado alheio |
+
+## Perfis e permissões
+
+São dois tipos de usuário, e a diferença entre eles segue o domínio: **o veterinário produz o
+prontuário, o responsável o consulta.**
+
+| | `VETERINARIO` | `RESPONSAVEL` |
+|---|---|---|
+| Cadastro | `POST /api/auth/registrar/veterinario` | `POST /api/auth/registrar/responsavel` |
+| Prontuário (consultas, diagnósticos, exames, pedidos médicos, vacinas) | cria, edita e apaga | apenas lê |
+| Pets, veterinários e unidades | cria, edita e apaga | apenas lê |
+| Leituras do wearable | cria, edita e apaga | apenas lê |
+| Lembretes | leitura e escrita | leitura e escrita, só os próprios |
+| Dados pessoais do responsável (contatos, endereços) | apenas lê, para vincular um pet ao tutor | é o único que edita |
+| Alcance das listagens | todos os registros da clínica | somente os pets sob sua responsabilidade |
+
+A proteção acontece em duas camadas, e as duas importam:
+
+- **Por rota e método**, em [`SecurityConfig`](src/main/java/fiap/pethub/config/SecurityConfig.java):
+  quem não tem o perfil exigido recebe `403` antes de a requisição chegar ao controller. Manter as
+  regras num arquivo só permite ler de cima a baixo quem pode fazer o quê.
+- **Por posse do recurso**, em [`EscopoDoUsuario`](src/main/java/fiap/pethub/security/EscopoDoUsuario.java):
+  um `RESPONSAVEL` autenticado que peça o pet de outro tutor recebe `404`, não `403` — a API não
+  confirma nem nega a existência de um recurso alheio. As listagens são filtradas pelo responsável
+  do token, e a chave de cache inclui o escopo do usuário, para que um acerto de cache nunca
+  devolva a um tutor o dado carregado por outro.
+
+## Migrations (Flyway)
+
+O schema é versionado pelo Flyway, não gerado pelo Hibernate. As migrations ficam em
+`src/main/resources/db/migration` e rodam sozinhas no start da aplicação.
+
+| Arquivo | Conteúdo |
+|---|---|
+| `V1__schema_inicial.sql` | 13 sequences, 13 tabelas e 20 chaves estrangeiras — o schema completo do PetHub |
+
+Configuração relevante em `application.properties`:
+
+```properties
+spring.jpa.hibernate.ddl-auto=validate
+spring.flyway.enabled=true
+spring.flyway.baseline-on-migrate=true
+spring.flyway.baseline-version=1
+spring.datasource.hikari.maximum-pool-size=2
+```
+
+- `ddl-auto=validate` — o Hibernate deixa de criar e alterar tabela; ele apenas **confere** se as
+  entidades batem com o que o Flyway aplicou. Se divergirem, a aplicação não sobe, e é justamente
+  esse o ponto: a divergência aparece no boot, não em produção.
+- `baseline-on-migrate` — o schema da FIAP já existia, criado pelo `ddl-auto=update` das sprints
+  anteriores. Sem isso, o Flyway encontraria tabelas fora do seu controle e recusaria trabalhar.
+  Com a baseline na versão 1, ele adota o schema atual como ponto de partida.
+- `maximum-pool-size=2` — o pool da FIAP é limitado e o projeto o mantém no mínimo viável, mas
+  **1 não basta**: no boot o Flyway segura uma conexão para aplicar a migration e pede outra para
+  gravar o histórico. Com o pool em 1, ele espera os 30s do `connection-timeout` e a aplicação
+  morre sem subir.
+
+No start, o log mostra o Flyway trabalhando — é assim que se confirma que as migrations rodaram:
+
+```
+o.f.core.internal.command.DbValidate  : Successfully validated 2 migrations
+o.f.core.internal.command.DbMigrate   : Current version of schema "RM566234": 1
+o.f.core.internal.command.DbMigrate   : Schema "RM566234" is up to date. No migration necessary.
+```
+
+**Para criar uma nova migration**, adicione um arquivo `V2__descricao_curta.sql` na mesma pasta.
+Migration já aplicada nunca deve ser editada — o Flyway compara o checksum e falha se o conteúdo
+mudou. Corrija sempre com uma versão nova.
+
+## Fluxos completos (não-CRUD)
+
+Além do CRUD, a aplicação implementa quatro fluxos de negócio que rodam sozinhos, sem ninguém
+chamar um endpoint de lembrete.
+
+### 1. Vigilância diária de hidratação (agendada)
+
+O wearable de hidratação envia leituras ao longo do dia. Todo dia às **21h**, o
+[`LeituraWearableService`](src/main/java/fiap/pethub/service/LeituraWearableService.java) apura,
+por pet, quanto foi consumido contra a meta diária e cria um lembrete quando o consumo ficou baixo:
+
+| Consumo | Reação |
+|---|---|
+| ≥ 50% da meta | nenhum alerta |
+| entre 25% e 50% | lembrete de atenção, pedindo que o tutor incentive o pet a beber água |
+| < 25% da meta | lembrete **crítico**, sinalizando risco de desidratação grave |
+
+A apuração é paginada, para que a rotina não carregue todas as leituras do dia na memória.
+
+### 2. Lembrete automático de próxima dose
+
+Ao registrar uma vacina ou tratamento com o campo `proximaDose` preenchido, o sistema cria o
+lembrete daquela data, vinculado ao pet e ao responsável. Sem `proximaDose`, nada é criado — é o
+próprio dado clínico que decide.
+
+### 3. Lembrete automático de consulta agendada
+
+Toda consulta criada gera um lembrete para o responsável do pet, na data e hora do agendamento.
+
+### 4. Lembrete automático de pedido médico
+
+Ao emitir um pedido médico, o tipo do lembrete acompanha o tipo do pedido — `EXAME` ou
+`MEDICAMENTO` — e a data limite vira a data agendada, com as instruções do veterinário no texto.
+
+Todos os quatro caem na mesma entidade `Lembrete`, com `referenciaTipo` e `referenciaId` apontando
+para a origem, e podem ser acompanhados em `GET /api/lembretes` ou marcados como enviados em
+`PATCH /api/lembretes/{id}/status`.
 
 ## Endpoints
 
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | /api/pets | Listar todos os pets (paginado) |
-| GET | /api/pets/{id} | Buscar pet por ID |
-| GET | /api/pets/responsavel?cpf= | Buscar pets por CPF do responsável |
-| POST | /api/pets | Criar novo pet |
-| PUT | /api/pets/{id} | Atualizar pet por ID |
-| DELETE | /api/pets/{id} | Deletar pet por ID |
-| GET | /api/consultas | Listar todas as consultas (paginado) |
-| GET | /api/consultas/{id} | Buscar consulta por ID |
-| POST | /api/consultas | Criar nova consulta |
-| PUT | /api/consultas/{id} | Atualizar consulta |
-| DELETE | /api/consultas/{id} | Deletar consulta |
-| GET | /api/exames | Listar todos os exames (paginado) |
-| GET | /api/exames/{id} | Buscar exame por ID |
-| POST | /api/exames | Criar novo exame |
-| PUT | /api/exames/{id} | Atualizar exame |
-| DELETE | /api/exames/{id} | Deletar exame |
-| GET | /api/diagnosticos | Listar todos os diagnósticos (paginado) |
-| GET | /api/diagnosticos/{id} | Buscar diagnóstico por ID |
-| POST | /api/diagnosticos | Criar novo diagnóstico |
-| PUT | /api/diagnosticos/{id} | Atualizar diagnóstico |
-| DELETE | /api/diagnosticos/{id} | Deletar diagnóstico |
-| GET | /api/vacinas-tratamentos | Listar todas as vacinas/tratamentos (paginado) |
-| GET | /api/vacinas-tratamentos/{id} | Buscar vacina/tratamento por ID |
-| POST | /api/vacinas-tratamentos | Criar nova vacina/tratamento |
-| PUT | /api/vacinas-tratamentos/{id} | Atualizar vacina/tratamento |
-| DELETE | /api/vacinas-tratamentos/{id} | Deletar vacina/tratamento |
-| GET | /api/pedidos-medicos | Listar todos os pedidos médicos (paginado) |
-| GET | /api/pedidos-medicos/{id} | Buscar pedido médico por ID |
-| POST | /api/pedidos-medicos | Criar novo pedido médico |
-| PUT | /api/pedidos-medicos/{id} | Atualizar pedido médico |
-| DELETE | /api/pedidos-medicos/{id} | Deletar pedido médico |
-| GET | /api/leituras-wearable | Listar leituras wearable (paginado) |
-| GET | /api/leituras-wearable/{id} | Buscar leitura wearable por ID |
-| POST | /api/leituras-wearable | Criar nova leitura wearable |
-| PUT | /api/leituras-wearable/{id} | Atualizar leitura wearable |
-| DELETE | /api/leituras-wearable/{id} | Deletar leitura wearable |
-| GET | /api/lembretes | Listar todos os lembretes (paginado) |
-| GET | /api/lembretes/{id} | Buscar lembrete por ID |
-| POST | /api/lembretes | Criar novo lembrete |
-| PUT | /api/lembretes/{id} | Atualizar lembrete |
-| DELETE | /api/lembretes/{id} | Deletar lembrete |
-| GET | /api/veterinarios | Listar todos os veterinários (paginado) |
-| GET | /api/veterinarios/{id} | Buscar veterinário por ID |
-| POST | /api/veterinarios | Criar novo veterinário |
-| PUT | /api/veterinarios/{id} | Atualizar veterinário |
-| DELETE | /api/veterinarios/{id} | Deletar veterinário |
-| GET | /api/unidades-veterinario | Listar todas as unidades (paginado) |
-| GET | /api/unidades-veterinario/{id} | Buscar unidade por ID |
-| POST | /api/unidades-veterinario | Criar nova unidade |
-| PUT | /api/unidades-veterinario/{id} | Atualizar unidade |
-| DELETE | /api/unidades-veterinario/{id} | Deletar unidade |
-| GET | /api/responsaveis | Listar todos os responsáveis (paginado) |
-| GET | /api/responsaveis/{id} | Buscar responsável por ID |
-| GET | /api/responsaveis/buscar?cpf= | Buscar responsável por CPF |
-| POST | /api/responsaveis | Criar novo responsável |
-| PUT | /api/responsaveis/{id} | Atualizar responsável |
-| DELETE | /api/responsaveis/{id} | Deletar responsável |
+Legenda da coluna **Acesso**: `público` dispensa token; `ambos` aceita os dois perfis; `VET` exige
+o perfil `VETERINARIO`.
 
+### Autenticação
+
+| Método | Rota | Descrição | Acesso |
+|---|---|---|---|
+| POST | /api/auth/login | Autenticar e receber o token JWT | público |
+| POST | /api/auth/registrar/responsavel | Cadastrar responsável e já receber o token | público |
+| POST | /api/auth/registrar/veterinario | Cadastrar veterinário e já receber o token | público |
+
+### Pets e prontuário
+
+| Método | Rota | Descrição | Acesso |
+|---|---|---|---|
+| GET | /api/pets | Listar todos os pets (paginado) | ambos |
+| GET | /api/pets/{id} | Buscar pet por ID | ambos |
+| GET | /api/pets/responsavel?cpf= | Buscar pets por CPF do responsável | ambos |
+| POST | /api/pets | Criar novo pet | VET |
+| PUT | /api/pets/{id} | Atualizar pet por ID | VET |
+| DELETE | /api/pets/{id} | Deletar pet por ID | VET |
+| GET | /api/consultas | Listar todas as consultas (paginado) | ambos |
+| GET | /api/consultas/{id} | Buscar consulta por ID | ambos |
+| POST | /api/consultas | Criar nova consulta | VET |
+| PUT | /api/consultas/{id} | Atualizar consulta | VET |
+| DELETE | /api/consultas/{id} | Deletar consulta | VET |
+| GET | /api/exames | Listar todos os exames (paginado) | ambos |
+| GET | /api/exames/{id} | Buscar exame por ID | ambos |
+| POST | /api/exames | Criar novo exame | VET |
+| PUT | /api/exames/{id} | Atualizar exame | VET |
+| DELETE | /api/exames/{id} | Deletar exame | VET |
+| GET | /api/diagnosticos | Listar todos os diagnósticos (paginado) | ambos |
+| GET | /api/diagnosticos/{id} | Buscar diagnóstico por ID | ambos |
+| POST | /api/diagnosticos | Criar novo diagnóstico | VET |
+| PUT | /api/diagnosticos/{id} | Atualizar diagnóstico | VET |
+| DELETE | /api/diagnosticos/{id} | Deletar diagnóstico | VET |
+| GET | /api/vacinas-tratamentos | Listar todas as vacinas/tratamentos (paginado) | ambos |
+| GET | /api/vacinas-tratamentos/{id} | Buscar vacina/tratamento por ID | ambos |
+| POST | /api/vacinas-tratamentos | Criar nova vacina/tratamento | VET |
+| PUT | /api/vacinas-tratamentos/{id} | Atualizar vacina/tratamento | VET |
+| DELETE | /api/vacinas-tratamentos/{id} | Deletar vacina/tratamento | VET |
+| GET | /api/pedidos-medicos | Listar todos os pedidos médicos (paginado) | ambos |
+| GET | /api/pedidos-medicos/{id} | Buscar pedido médico por ID | ambos |
+| POST | /api/pedidos-medicos | Criar novo pedido médico | VET |
+| PUT | /api/pedidos-medicos/{id} | Atualizar pedido médico | VET |
+| DELETE | /api/pedidos-medicos/{id} | Deletar pedido médico | VET |
+
+### Wearable e lembretes
+
+| Método | Rota | Descrição | Acesso |
+|---|---|---|---|
+| GET | /api/leituras-wearable | Listar leituras wearable (paginado) | ambos |
+| GET | /api/leituras-wearable/{id} | Buscar leitura wearable por ID | ambos |
+| POST | /api/leituras-wearable | Criar nova leitura wearable | VET |
+| PUT | /api/leituras-wearable/{id} | Atualizar leitura wearable | VET |
+| DELETE | /api/leituras-wearable/{id} | Deletar leitura wearable | VET |
+| GET | /api/lembretes | Listar lembretes (paginado) | ambos |
+| GET | /api/lembretes/{id} | Buscar lembrete por ID | ambos |
+| POST | /api/lembretes | Criar novo lembrete | ambos |
+| PUT | /api/lembretes/{id} | Atualizar lembrete | ambos |
+| PATCH | /api/lembretes/{id}/status?status= | Atualizar status do lembrete | ambos |
+| DELETE | /api/lembretes/{id} | Deletar lembrete | ambos |
+
+### Clínica e responsáveis
+
+| Método | Rota | Descrição | Acesso |
+|---|---|---|---|
+| GET | /api/veterinarios | Listar todos os veterinários (paginado) | ambos |
+| GET | /api/veterinarios/{id} | Buscar veterinário por ID | ambos |
+| POST | /api/veterinarios | Criar novo veterinário | VET |
+| PUT | /api/veterinarios/{id} | Atualizar veterinário | VET |
+| DELETE | /api/veterinarios/{id} | Deletar veterinário | VET |
+| GET | /api/unidades | Listar todas as unidades (paginado) | ambos |
+| GET | /api/unidades/{id} | Buscar unidade por ID | ambos |
+| POST | /api/unidades | Criar nova unidade | VET |
+| PUT | /api/unidades/{id} | Atualizar unidade | VET |
+| DELETE | /api/unidades/{id} | Deletar unidade | VET |
+| GET | /api/responsaveis | Listar responsáveis (paginado) | ambos |
+| GET | /api/responsaveis/{id} | Buscar responsável por ID | ambos |
+| GET | /api/responsaveis/buscar?cpf= | Buscar responsável por CPF | ambos |
+| POST | /api/responsaveis | Criar novo responsável | ambos |
+| PUT | /api/responsaveis/{id} | Atualizar responsável | só o titular |
+| DELETE | /api/responsaveis/{id} | Deletar responsável | só o titular |
+| GET | /api/responsaveis/{id}/contatos | Listar contatos do responsável | ambos |
+| GET | /api/responsaveis/{id}/contatos/{contatoId} | Buscar contato por ID | ambos |
+| POST | /api/responsaveis/{id}/contatos | Adicionar contato | só o titular |
+| PUT | /api/responsaveis/{id}/contatos/{contatoId} | Atualizar contato | só o titular |
+| DELETE | /api/responsaveis/{id}/contatos/{contatoId} | Remover contato | só o titular |
+| GET | /api/responsaveis/{id}/enderecos | Listar endereços do responsável | ambos |
+| GET | /api/responsaveis/{id}/enderecos/{enderecoId} | Buscar endereço por ID | ambos |
+| POST | /api/responsaveis/{id}/enderecos | Adicionar endereço | só o titular |
+| PUT | /api/responsaveis/{id}/enderecos/{enderecoId} | Atualizar endereço | só o titular |
+| DELETE | /api/responsaveis/{id}/enderecos/{enderecoId} | Remover endereço | só o titular |
 
 ## Estrutura do Projeto
 
 ```
 fiap.pethub
-├── PethubApplication.java       → Classe principal com configuração OpenAPI
+├── PethubApplication.java       → Classe principal, OpenAPI e @EnableScheduling
 │
 ├── config/                      → Configurações da aplicação
-│   ├── CacheConfig.java         → Configuração de Cache Caffeine
-│   ├── PasswordUtil.java        → Utilitário de hash BCrypt
-│   └── WebConfig.java           → Configurações Web
+│   ├── CacheConfig.java         → Cache Caffeine
+│   ├── ConfiguracaoDotenv.java  → Carrega o .env como fonte de configuração
+│   ├── SecurityConfig.java      → Regras de acesso por rota e perfil, BCrypt
+│   └── WebConfig.java           → Configurações Web e CORS
+│
+├── security/                    → Autenticação JWT
+│   ├── JwtService.java          → Emite e verifica os tokens
+│   ├── JwtAuthenticationFilter.java → Lê o cabeçalho Authorization a cada requisição
+│   ├── UsuarioDetailsService.java   → Carrega veterinário ou responsável pelo e-mail
+│   ├── UsuarioAutenticado.java  → Principal com id e perfil
+│   └── EscopoDoUsuario.java     → Regra de posse: o que o usuário pode enxergar
 │
 ├── controller/                  → Controladores (endpoints REST)
+│   ├── AuthController.java
 │   ├── PetsController.java
 │   ├── ConsultasController.java
 │   ├── ExamesController.java
 │   ├── DiagnosticosController.java
-│   ├── VacinaTratamentosController.java
+│   ├── VacinasTratamentosController.java
 │   ├── PedidosMedicosController.java
 │   ├── LeiturasWearableController.java
 │   ├── LembretesController.java
@@ -125,12 +407,12 @@ fiap.pethub
 │
 ├── dto/                         → Data Transfer Objects
 │   ├── request/                 → DTOs de entrada (validação)
+│   │   ├── LoginRequest.java
 │   │   ├── CreatePetRequest.java
-│   │   ├── CreateConsultaRequest.java
 │   │   └── ...
 │   └── response/                → DTOs de saída
+│       ├── LoginResponse.java
 │       ├── PetResponse.java
-│       ├── ConsultaResponse.java
 │       └── ...
 │
 ├── entity/                      → Entidades JPA
@@ -149,6 +431,7 @@ fiap.pethub
 │   └── ResponsavelEndereco.java
 │
 ├── enums/                       → Enumerações
+│   ├── Perfil.java              → VETERINARIO e RESPONSAVEL
 │   ├── StatusConsulta.java
 │   ├── StatusLembrete.java
 │   ├── StatusPedidoMedico.java
@@ -160,6 +443,8 @@ fiap.pethub
 │
 ├── exception/                   → Tratamento de exceções
 │   ├── GlobalExceptionHandler.java  → Handler centralizado
+│   ├── AcessoNegadoException.java
+│   ├── EmailJaCadastradoException.java
 │   ├── ResourceNotFoundException.java
 │   ├── ErrorResponse.java
 │   ├── ValidationErrorResponse.java
@@ -176,15 +461,30 @@ fiap.pethub
 │   └── ...
 │
 ├── service/                     → Lógica de negócio
+│   ├── AuthService.java
 │   ├── PetService.java
 │   ├── ConsultaService.java
 │   └── ...
 │
 └── resources/
-    └── application.properties   → Configurações da aplicação
+    ├── application.properties   → Configurações da aplicação
+    └── db/migration/            → Migrations do Flyway
+        └── V1__schema_inicial.sql
 ```
 
 ## Requisitos Técnicos Atendidos
+
+### Sprint 3
+
+| Requisito | Status | Evidência |
+|---|---|---|
+| Flyway para versionamento do banco | ✅ | `V1__schema_inicial.sql` com 13 tabelas, 13 sequences e 20 FKs; `ddl-auto=validate` |
+| Spring Security — dois tipos de usuário | ✅ | Perfis `VETERINARIO` e `RESPONSAVEL`, autenticação JWT com senha em BCrypt |
+| Spring Security — rotas protegidas por perfil | ✅ | `SecurityConfig` por rota e método, mais posse por recurso em `EscopoDoUsuario` |
+| Dois fluxos completos além do CRUD | ✅ | Quatro: vigilância diária de hidratação (`@Scheduled`) e lembretes automáticos de vacina, consulta e pedido médico |
+| Validações nos dados de entrada | ✅ | Bean Validation nos DTOs, com erro 400 detalhado por campo |
+
+### Sprints anteriores
 
 | Requisito | Status | Evidência |
 |---|---|---|
@@ -198,7 +498,9 @@ fiap.pethub
 | Documentação com Swagger | ✅ | OpenAPI 3.0 + Swagger UI |
 
 ## Prints das telas (Postman)
-Fluxo seguindo as regras de negócio da solução.
+Fluxo seguindo as regras de negócio da solução. As capturas são anteriores à introdução do Spring
+Security: para reproduzi-las hoje, autentique-se antes (ver [Acesso à aplicação](#acesso-à-aplicação))
+e envie o cabeçalho `Authorization: Bearer <token>` em todas as chamadas abaixo.
 
 ### 01 - Criar unidade veterinaria - `POST /api/unidades`
 <img width="363" height="571" alt="image" src="https://github.com/user-attachments/assets/584b69f9-941f-45be-badf-9bffca58c44f" />
@@ -250,5 +552,5 @@ Fluxo seguindo as regras de negócio da solução.
 ### Buscar Responsável por ID - `GET /api/responsaveis/{id}`
 <img width="449" height="767" alt="image" src="https://github.com/user-attachments/assets/8b6c9ba9-51cd-410e-865e-21f6bdd86af2" />
 
-### Listando Unidades Vets junto com os Veterinarios registrados - `GET /api/unidades}`
+### Listando Unidades Vets junto com os Veterinarios registrados - `GET /api/unidades`
 <img width="376" height="886" alt="image" src="https://github.com/user-attachments/assets/dc1b7172-d109-4b4a-a817-260dd4200321" />

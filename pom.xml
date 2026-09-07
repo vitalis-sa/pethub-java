@@ -57,7 +57,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Flyway -->
+		<!-- Flyway. No Spring Boot 4 a auto-configuracao vive em modulo proprio:
+		     sem spring-boot-flyway, as propriedades spring.flyway.* sao ignoradas
+		     e nenhuma migration roda. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-flyway</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
