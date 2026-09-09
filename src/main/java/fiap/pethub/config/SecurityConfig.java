@@ -58,46 +58,69 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @org.springframework.core.annotation.Order(1)
+    public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
         return http
-                // Sem isto, o preflight do navegador — que chega sem token, por
-                // definição — é barrado aqui antes de alcançar as regras de CORS
-                // do WebConfig, e toda chamada autenticada falha no browser.
+                .securityMatcher("/api/**")
                 .cors(Customizer.withDefaults())
-                // A API não usa cookie de sessão, então não há o que um site
-                // terceiro possa forjar: CSRF não se aplica.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**").permitAll()
-
                         .requestMatchers(HttpMethod.GET, ROTAS_CLINICAS).hasAnyRole(VET, TUTOR)
                         .requestMatchers(ROTAS_CLINICAS).hasRole(VET)
-
                         .requestMatchers(HttpMethod.GET, ROTAS_ADMINISTRATIVAS).hasAnyRole(VET, TUTOR)
                         .requestMatchers(ROTAS_ADMINISTRATIVAS).hasRole(VET)
-
-                        // O dispositivo IoT ainda não tem identidade própria; até a
-                        // Sprint 4, gravar leitura exige perfil de veterinário.
                         .requestMatchers(HttpMethod.GET, "/api/leituras-wearable/**").hasAnyRole(VET, TUTOR)
                         .requestMatchers("/api/leituras-wearable/**").hasRole(VET)
-
                         .requestMatchers("/api/lembretes/**").hasAnyRole(VET, TUTOR)
                         .requestMatchers("/api/responsaveis/**").hasAnyRole(VET, TUTOR)
-
                         .anyRequest().authenticated())
-                // Sem isto, uma requisição sem token receberia 403. A distinção
-                // importa para o cliente: 401 significa "faça login", 403
-                // significa "seu perfil não permite" — reações diferentes.
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, erro) ->
-                                responder(res, HttpStatus.UNAUTHORIZED,
-                                        "Autenticação necessária"))
+                                responder(res, HttpStatus.UNAUTHORIZED, "Autenticação necessária"))
                         .accessDeniedHandler((req, res, erro) ->
-                                responder(res, HttpStatus.FORBIDDEN,
-                                        "Seu perfil não tem permissão para esta operação")))
+                                responder(res, HttpStatus.FORBIDDEN, "Seu perfil não tem permissão para esta operação")))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
+    }
+
+    @Bean
+    @org.springframework.core.annotation.Order(2)
+    public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .cors(Customizer.withDefaults())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
+                        .requestMatchers("/login", "/registrar/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**").permitAll()
+                        
+                        // Rotas Web para o Tutor (Responsável)
+                        .requestMatchers("/tutor/**").hasRole(TUTOR)
+                        
+                        // Rotas Web para o Veterinário
+                        .requestMatchers("/vet/**").hasRole(VET)
+                        
+                        .anyRequest().authenticated()
+                )
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .successHandler((request, response, authentication) -> {
+                            boolean isVet = authentication.getAuthorities().stream()
+                                    .anyMatch(a -> a.getAuthority().equals("ROLE_" + VET));
+                            if (isVet) {
+                                response.sendRedirect("/vet/dashboard");
+                            } else {
+                                response.sendRedirect("/tutor/dashboard");
+                            }
+                        })
+                        .permitAll()
+                )
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout")
+                        .permitAll()
+                )
                 .build();
     }
 

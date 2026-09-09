@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.cache.annotation.EnableCaching;
 
 /**
  * O esquema de segurança abaixo é o que faz o Swagger UI mostrar o botão
@@ -39,6 +40,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 )
 @SpringBootApplication
 @EnableScheduling
+@EnableCaching
 public class PethubApplication {
 
 	public static void main(String[] args) {

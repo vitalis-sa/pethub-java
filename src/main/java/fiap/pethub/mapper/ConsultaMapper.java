@@ -19,6 +19,7 @@ public interface ConsultaMapper {
     Consulta toEntity(ConsultaRequest request);
 
     @Mapping(source = "pet.nome", target = "nomePet")
+    @Mapping(source = "pet.id", target = "petId")
     @Mapping(source = "veterinario.nome", target = "nomeVeterinario")
     @Mapping(source = "unidade.nome", target = "nomeUnidade")
     ConsultaResponse toResponse(Consulta consulta);

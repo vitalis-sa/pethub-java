@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Meus Pets - PetHub</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #fffaee; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        .btn { padding: 8px 15px; background-color: #d4751e; color: white; text-decoration: none; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background-color: #b36217; }
+        .btn-logout { background-color: #0c2476; }
+        .btn-logout:hover { background-color: #081a54; }
+        .pet-card { border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .pet-card a { color: #0c2476; text-decoration: none; font-weight: bold; }
+        .pet-card a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>Bem-vindo(a), <span th:text="${nome}">Tutor</span>!</h2>
+        <form th:action="@{/logout}" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-logout">Sair</button>
+        </form>
+    </div>
+
+    <h3>Meus Pets</h3>
+    
+    <div th:if="${#lists.isEmpty(pets)}">
+        <p>Você ainda não possui nenhum pet cadastrado.</p>
+    </div>
+
+    <div th:unless="${#lists.isEmpty(pets)}">
+        <div th:each="pet : ${pets}" class="pet-card">
+            <div>
+                <a th:href="@{/tutor/pets/{id}(id=${pet.id})}" th:text="${pet.nome}">Nome do Pet</a>
+                - <span th:text="${pet.especie}">Espécie</span>
+                <span th:if="${pet.raca != null}" th:text="'(' + ${pet.raca} + ')'"></span>
+            </div>
+        </div>
+    </div>
+
+    <br>
+    <a th:href="@{/tutor/pets/novo}" class="btn">Cadastrar Novo Pet</a>
+</div>
+</body>
+</html>

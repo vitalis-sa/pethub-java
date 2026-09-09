@@ -25,7 +25,7 @@ public class ConsultaResponse {
     @Schema(description = "Tipo da consulta", example = "PRESENCIAL")
     private TipoConsulta tipo;
 
-    @Schema(description = "Observações")
+    @Schema(description = "Observacoes")
     private String observacoes;
 
     @Schema(description = "Status", example = "AGENDADA")
@@ -34,10 +34,13 @@ public class ConsultaResponse {
     @Schema(description = "Nome do pet", example = "Rex")
     private String nomePet;
 
-    @Schema(description = "Nome do veterinário", example = "Dr. Carlos Souza")
+    @Schema(description = "ID do pet", example = "1")
+    private Long petId;
+
+    @Schema(description = "Nome do veterinario", example = "Dr. Carlos Souza")
     private String nomeVeterinario;
 
-    @Schema(description = "Nome da unidade veterinária", example = "Clínica PetVida")
+    @Schema(description = "Nome da unidade veterinaria", example = "Clinica PetVida")
     private String nomeUnidade;
-}
 
+}

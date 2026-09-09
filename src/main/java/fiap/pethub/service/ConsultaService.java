@@ -101,6 +101,10 @@ public class ConsultaService {
     }
 
     private void applyUnidade(Long unidadeId, Consulta entity) {
+        if (unidadeId == null) {
+            entity.setUnidade(null);
+            return;
+        }
         unidadeRepository.findById(unidadeId)
                 .ifPresentOrElse(
                         entity::setUnidade,
