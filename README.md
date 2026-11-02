@@ -696,44 +696,309 @@ fiap.pethub
 
 ## Prints do Swagger UI (todos os endpoints)
 
-Documentação interativa em [`/swagger-ui.html`](http://localhost:8080/swagger-ui.html),
-gerada pelo Springdoc a partir das anotações `@Operation` e `@ApiResponses` dos controllers.
+Os **57 endpoints** foram executados no Swagger **publicado no Cloud Run**
+([`/swagger-ui.html`](https://pethub-java.cloud.run/swagger-ui.html)) em 02/11/2026, autenticados como veterinário,
+seguindo o fluxo real: cadastro e login, clínica, pet, consulta, atendimento com IA e prontuário. Cada imagem mostra a
+chamada inteira: parâmetros, corpo enviado, curl, URL, código e corpo da resposta. O token JWT foi ocultado nas
+imagens, e os dados usados são de teste, apagados ao final.
 
-Cada grupo em detalhe:
+| Grupo | Endpoints |
+|---|---|
+| [Autenticação](#swagger-auth) | 2 |
+| [Veterinários](#swagger-veterinarios) | 5 |
+| [Unidades veterinárias](#swagger-unidades) | 5 |
+| [Pets](#swagger-pets) | 10 |
+| [Consultas](#swagger-consultas) | 7 |
+| [Inteligência Artificial](#swagger-ia) | 5 |
+| [Exames](#swagger-exames) | 8 |
+| [Diagnósticos](#swagger-diagnosticos) | 5 |
+| [Vacinas e tratamentos](#swagger-vacinas-tratamentos) | 5 |
+| [Pedidos médicos](#swagger-pedidos-medicos) | 5 |
 
-**Autenticação** — login e os dois cadastros públicos
+<a id="swagger-auth"></a>
+<details>
+<summary><strong>Autenticação</strong> (2 endpoints)</summary>
 
-![Swagger Autenticação](docs/img/17-07-swagger-autenticacao.png)
+**`POST /api/auth/registrar/veterinario`**: Cadastrar veterinário
 
-**Pets**
+![POST /api/auth/registrar/veterinario](docs/img/swagger/01-auth-post-auth_registrar_veterinario.png)
 
-![Swagger Pets](docs/img/17-10-swagger-pets.png)
+**`POST /api/auth/login`**: Autenticar
 
-**Consultas**
+![POST /api/auth/login](docs/img/swagger/02-auth-post-auth_login.png)
 
-![Swagger Consultas](docs/img/17-01-swagger-consultas.png)
+</details>
 
-**Diagnósticos**
+<a id="swagger-veterinarios"></a>
+<details>
+<summary><strong>Veterinários</strong> (5 endpoints)</summary>
 
-![Swagger Diagnósticos](docs/img/17-09-swagger-diagnosticos.png)
+**`GET /api/veterinarios`**: Listar veterinários
 
-**Exames**
+![GET /api/veterinarios](docs/img/swagger/03-veterinarios-get-veterinarios.png)
 
-![Swagger Exames](docs/img/17-11-swagger-exames.png)
+**`POST /api/veterinarios`**: Cadastrar veterinário
 
-**Pedidos médicos**
+![POST /api/veterinarios](docs/img/swagger/04-veterinarios-post-veterinarios.png)
 
-![Swagger Pedidos Médicos](docs/img/17-05-swagger-pedidos-medicos.png)
+**`GET /api/veterinarios/{id}`**: Buscar veterinário por ID
 
-**Vacinas e tratamentos**
+![GET /api/veterinarios/{id}](docs/img/swagger/05-veterinarios-get-veterinarios_id.png)
 
-![Swagger Vacinas e Tratamentos](docs/img/17-12-swagger-vacinas-e-tratamentos.png)
+**`PUT /api/veterinarios/{id}`**: Atualizar veterinário
 
-**Veterinários**
+![PUT /api/veterinarios/{id}](docs/img/swagger/06-veterinarios-put-veterinarios_id.png)
 
-![Swagger Veterinários](docs/img/17-03-swagger-veterinarios.png)
+**`DELETE /api/veterinarios/{id}`**: Remover veterinário
 
-**Unidades veterinárias**
+![DELETE /api/veterinarios/{id}](docs/img/swagger/07-veterinarios-delete-veterinarios_id.png)
 
-![Swagger Unidades Veterinárias](docs/img/17-08-swagger-unidades-veterinarias.png)
+</details>
 
+<a id="swagger-unidades"></a>
+<details>
+<summary><strong>Unidades veterinárias</strong> (5 endpoints)</summary>
+
+**`GET /api/unidades`**: Listar unidades
+
+![GET /api/unidades](docs/img/swagger/08-unidades-get-unidades.png)
+
+**`POST /api/unidades`**: Cadastrar unidade veterinária
+
+![POST /api/unidades](docs/img/swagger/09-unidades-post-unidades.png)
+
+**`GET /api/unidades/{id}`**: Buscar unidade por ID
+
+![GET /api/unidades/{id}](docs/img/swagger/10-unidades-get-unidades_id.png)
+
+**`PUT /api/unidades/{id}`**: Atualizar unidade veterinária
+
+![PUT /api/unidades/{id}](docs/img/swagger/11-unidades-put-unidades_id.png)
+
+**`DELETE /api/unidades/{id}`**: Remover unidade veterinária
+
+![DELETE /api/unidades/{id}](docs/img/swagger/12-unidades-delete-unidades_id.png)
+
+</details>
+
+<a id="swagger-pets"></a>
+<details>
+<summary><strong>Pets</strong> (10 endpoints)</summary>
+
+**`POST /api/pets`**: Cadastrar pet
+
+![POST /api/pets](docs/img/swagger/13-pets-post-pets.png)
+
+**`GET /api/pets`**: Listar pets
+
+![GET /api/pets](docs/img/swagger/14-pets-get-pets.png)
+
+**`GET /api/pets/{id}`**: Buscar pet por ID
+
+![GET /api/pets/{id}](docs/img/swagger/15-pets-get-pets_id.png)
+
+**`GET /api/pets/responsavel`**: Listar pets por CPF do responsável
+
+![GET /api/pets/responsavel](docs/img/swagger/16-pets-get-pets_responsavel.png)
+
+**`PUT /api/pets/{id}`**: Atualizar pet
+
+![PUT /api/pets/{id}](docs/img/swagger/17-pets-put-pets_id.png)
+
+**`POST /api/pets/{id}/foto/envio`**: Passo 1 da foto: URL assinada para enviar a imagem ao bucket
+
+![POST /api/pets/{id}/foto/envio](docs/img/swagger/18-pets-post-pets_id_foto_envio.png)
+
+**`PUT /api/pets/{id}/foto`**: Passo 2 da foto: confirma o envio e vincula a foto ao pet
+
+![PUT /api/pets/{id}/foto](docs/img/swagger/19-pets-put-pets_id_foto.png)
+
+**`GET /api/pets/{id}/foto`**: URL temporária para baixar a foto do pet
+
+![GET /api/pets/{id}/foto](docs/img/swagger/20-pets-get-pets_id_foto.png)
+
+**`DELETE /api/pets/{id}`**: Remover pet
+
+![DELETE /api/pets/{id}](docs/img/swagger/56-pets-delete-pets_id.png)
+
+**`DELETE /api/pets/responsavel/{responsavelId}`**: Remover todos os pets de um responsável
+
+![DELETE /api/pets/responsavel/{responsavelId}](docs/img/swagger/57-pets-delete-pets_responsavel_responsavelId.png)
+
+</details>
+
+<a id="swagger-consultas"></a>
+<details>
+<summary><strong>Consultas</strong> (7 endpoints)</summary>
+
+**`POST /api/consultas`**: Criar consulta
+
+![POST /api/consultas](docs/img/swagger/21-consultas-post-consultas.png)
+
+**`GET /api/consultas`**: Listar consultas
+
+![GET /api/consultas](docs/img/swagger/22-consultas-get-consultas.png)
+
+**`GET /api/consultas/{id}`**: Buscar consulta por ID
+
+![GET /api/consultas/{id}](docs/img/swagger/23-consultas-get-consultas_id.png)
+
+**`PUT /api/consultas/{id}`**: Atualizar consulta
+
+![PUT /api/consultas/{id}](docs/img/swagger/24-consultas-put-consultas_id.png)
+
+**`PATCH /api/consultas/{id}/remarcar`**: Remarcar uma consulta agendada
+
+![PATCH /api/consultas/{id}/remarcar](docs/img/swagger/25-consultas-patch-consultas_id_remarcar.png)
+
+**`PUT /api/consultas/{id}/queixas`**: Registrar as queixas do responsável antes da consulta
+
+![PUT /api/consultas/{id}/queixas](docs/img/swagger/26-consultas-put-consultas_id_queixas.png)
+
+**`DELETE /api/consultas/{id}`**: Remover consulta
+
+![DELETE /api/consultas/{id}](docs/img/swagger/55-consultas-delete-consultas_id.png)
+
+</details>
+
+<a id="swagger-ia"></a>
+<details>
+<summary><strong>Inteligência Artificial</strong> (5 endpoints)</summary>
+
+**`POST /api/consultas/{id}/analise-ia`**: Gerar rascunho de anamnese, receita e sugestão a partir da transcrição
+
+![POST /api/consultas/{id}/analise-ia](docs/img/swagger/27-consultas-post-consultas_id_analise-ia.png)
+
+**`PUT /api/consultas/{id}/analise-ia`**: Salvar a anamnese e a receita aceitas ou corrigidas pelo veterinário
+
+![PUT /api/consultas/{id}/analise-ia](docs/img/swagger/28-consultas-put-consultas_id_analise-ia.png)
+
+**`GET /api/consultas/{id}/analise-ia`**: Buscar a anamnese e a receita salvas
+
+![GET /api/consultas/{id}/analise-ia](docs/img/swagger/29-consultas-get-consultas_id_analise-ia.png)
+
+**`GET /api/consultas/{id}/receita`**: Receita aprovada da consulta
+
+![GET /api/consultas/{id}/receita](docs/img/swagger/30-consultas-get-consultas_id_receita.png)
+
+**`POST /api/exames/{id}/resumo-ia`**: Resumir o resultado de um exame a partir do texto do PDF
+
+![POST /api/exames/{id}/resumo-ia](docs/img/swagger/38-exames-post-exames_id_resumo-ia.png)
+
+</details>
+
+<a id="swagger-exames"></a>
+<details>
+<summary><strong>Exames</strong> (8 endpoints)</summary>
+
+**`POST /api/exames`**: Registrar exame
+
+![POST /api/exames](docs/img/swagger/31-exames-post-exames.png)
+
+**`GET /api/exames`**: Listar exames
+
+![GET /api/exames](docs/img/swagger/32-exames-get-exames.png)
+
+**`GET /api/exames/{id}`**: Buscar exame por ID
+
+![GET /api/exames/{id}](docs/img/swagger/33-exames-get-exames_id.png)
+
+**`PUT /api/exames/{id}`**: Atualizar exame
+
+![PUT /api/exames/{id}](docs/img/swagger/34-exames-put-exames_id.png)
+
+**`POST /api/exames/{id}/arquivo/envio`**: Passo 1 do PDF: URL assinada para enviar o arquivo ao bucket
+
+![POST /api/exames/{id}/arquivo/envio](docs/img/swagger/35-exames-post-exames_id_arquivo_envio.png)
+
+**`PUT /api/exames/{id}/arquivo`**: Passo 2 do PDF: confirma o envio e vincula o arquivo ao exame
+
+![PUT /api/exames/{id}/arquivo](docs/img/swagger/36-exames-put-exames_id_arquivo.png)
+
+**`GET /api/exames/{id}/arquivo`**: URL temporária para baixar o PDF do exame
+
+![GET /api/exames/{id}/arquivo](docs/img/swagger/37-exames-get-exames_id_arquivo.png)
+
+**`DELETE /api/exames/{id}`**: Remover exame
+
+![DELETE /api/exames/{id}](docs/img/swagger/39-exames-delete-exames_id.png)
+
+</details>
+
+<a id="swagger-diagnosticos"></a>
+<details>
+<summary><strong>Diagnósticos</strong> (5 endpoints)</summary>
+
+**`POST /api/diagnosticos`**: Registrar diagnóstico
+
+![POST /api/diagnosticos](docs/img/swagger/40-diagnosticos-post-diagnosticos.png)
+
+**`GET /api/diagnosticos`**: Listar diagnósticos
+
+![GET /api/diagnosticos](docs/img/swagger/41-diagnosticos-get-diagnosticos.png)
+
+**`GET /api/diagnosticos/{id}`**: Buscar diagnóstico por ID
+
+![GET /api/diagnosticos/{id}](docs/img/swagger/42-diagnosticos-get-diagnosticos_id.png)
+
+**`PUT /api/diagnosticos/{id}`**: Atualizar diagnóstico
+
+![PUT /api/diagnosticos/{id}](docs/img/swagger/43-diagnosticos-put-diagnosticos_id.png)
+
+**`DELETE /api/diagnosticos/{id}`**: Remover diagnóstico
+
+![DELETE /api/diagnosticos/{id}](docs/img/swagger/44-diagnosticos-delete-diagnosticos_id.png)
+
+</details>
+
+<a id="swagger-vacinas-tratamentos"></a>
+<details>
+<summary><strong>Vacinas e tratamentos</strong> (5 endpoints)</summary>
+
+**`POST /api/vacinas-tratamentos`**: Registrar vacina/tratamento
+
+![POST /api/vacinas-tratamentos](docs/img/swagger/45-vacinas-tratamentos-post-vacinas-tratamentos.png)
+
+**`GET /api/vacinas-tratamentos`**: Listar vacinas/tratamentos
+
+![GET /api/vacinas-tratamentos](docs/img/swagger/46-vacinas-tratamentos-get-vacinas-tratamentos.png)
+
+**`GET /api/vacinas-tratamentos/{id}`**: Buscar vacina/tratamento por ID
+
+![GET /api/vacinas-tratamentos/{id}](docs/img/swagger/47-vacinas-tratamentos-get-vacinas-tratamentos_id.png)
+
+**`PUT /api/vacinas-tratamentos/{id}`**: Atualizar vacina/tratamento
+
+![PUT /api/vacinas-tratamentos/{id}](docs/img/swagger/48-vacinas-tratamentos-put-vacinas-tratamentos_id.png)
+
+**`DELETE /api/vacinas-tratamentos/{id}`**: Remover vacina/tratamento
+
+![DELETE /api/vacinas-tratamentos/{id}](docs/img/swagger/49-vacinas-tratamentos-delete-vacinas-tratamentos_id.png)
+
+</details>
+
+<a id="swagger-pedidos-medicos"></a>
+<details>
+<summary><strong>Pedidos médicos</strong> (5 endpoints)</summary>
+
+**`POST /api/pedidos-medicos`**: Criar pedido médico
+
+![POST /api/pedidos-medicos](docs/img/swagger/50-pedidos-medicos-post-pedidos-medicos.png)
+
+**`GET /api/pedidos-medicos`**: Listar pedidos médicos
+
+![GET /api/pedidos-medicos](docs/img/swagger/51-pedidos-medicos-get-pedidos-medicos.png)
+
+**`GET /api/pedidos-medicos/{id}`**: Buscar pedido médico por ID
+
+![GET /api/pedidos-medicos/{id}](docs/img/swagger/52-pedidos-medicos-get-pedidos-medicos_id.png)
+
+**`PUT /api/pedidos-medicos/{id}`**: Atualizar pedido médico
+
+![PUT /api/pedidos-medicos/{id}](docs/img/swagger/53-pedidos-medicos-put-pedidos-medicos_id.png)
+
+**`DELETE /api/pedidos-medicos/{id}`**: Remover pedido médico
+
+![DELETE /api/pedidos-medicos/{id}](docs/img/swagger/54-pedidos-medicos-delete-pedidos-medicos_id.png)
+
+</details>
