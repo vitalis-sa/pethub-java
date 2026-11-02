@@ -196,8 +196,7 @@ public class PetService {
 
     private Optional<Veterinario> buscarVeterinario(Long veterinarioId) {
         return Optional.ofNullable(veterinarioId)
-                .map(id -> veterinarioRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + id)));
+                .map(id -> Cadastros.veterinario(veterinarioRepository, id));
     }
 
     private boolean temTexto(String valor) {
@@ -205,7 +204,6 @@ public class PetService {
     }
 
     private Pet findEntityById(Long id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + id));
+        return Cadastros.pet(repository, id);
     }
 }

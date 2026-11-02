@@ -15,6 +15,7 @@ import fiap.pethub.enums.StatusConsulta;
 import fiap.pethub.exception.IaIndisponivelException;
 import fiap.pethub.exception.RegraDeNegocioException;
 import fiap.pethub.exception.ResourceNotFoundException;
+import fiap.pethub.service.Cadastros;
 import fiap.pethub.repository.AnaliseConsultaRepository;
 import fiap.pethub.repository.ConsultaRepository;
 import fiap.pethub.security.EscopoDoUsuario;
@@ -155,8 +156,7 @@ public class AnaliseConsultaService {
     }
 
     private Consulta consultaDoUsuario(Long consultaId) {
-        Consulta consulta = consultaRepository.findById(consultaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com id: " + consultaId));
+        Consulta consulta = Cadastros.consulta(consultaRepository, consultaId);
         escopo.exigirPosse(consulta.getPet().getResponsavelId());
         return consulta;
     }

@@ -5,7 +5,6 @@ import fiap.pethub.dto.response.ConsultaResponse;
 import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.entity.Consulta;
 import fiap.pethub.entity.Pet;
-import fiap.pethub.entity.Veterinario;
 import fiap.pethub.enums.StatusConsulta;
 import fiap.pethub.email.ConsultaAgendada;
 import fiap.pethub.enums.TipoLembrete;
@@ -35,6 +34,11 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import static fiap.pethub.service.Cadastros.pet;
+import static fiap.pethub.service.Cadastros.veterinario;
+import static fiap.pethub.service.Cadastros.exigirPosseDoPet;
+import static fiap.pethub.service.Cadastros.listarNoEscopo;
+
 @Service
 @RequiredArgsConstructor
 public class ConsultaService {
@@ -55,7 +59,7 @@ public class ConsultaService {
     @Cacheable(value = "consultas", key = "'lista-' + #petId + '-' + #veterinarioId + '-' + #status + '-' + #pageable + '-' + @escopoDoUsuario.chaveDeCache()")
     public Page<ConsultaResponse> findAll(Long petId, Long veterinarioId, StatusConsulta status, Pageable pageable) {
         if (petId != null) {
-            exigirPosseDoPet(petId);
+            exigirPosseDoPet(escopo, petRepository, petId);
         }
         return Stream.<Map.Entry<Boolean, Supplier<Page<Consulta>>>>of(
                 Map.entry(petId != null && status != null, () -> repository.findByPetIdAndStatus(petId, status, pageable)),
@@ -67,7 +71,8 @@ public class ConsultaService {
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .map(Supplier::get)
-                .orElseGet(listarNoEscopo(pageable))
+                .orElseGet(listarNoEscopo(escopo, () -> repository.findAll(pageable),
+                        dono -> repository.findByPetResponsavelId(dono, pageable)))
                 .map(mapper::toResponse);
     }
 
@@ -81,7 +86,7 @@ public class ConsultaService {
     @Transactional
     @CacheEvict(value = "consultas", allEntries = true)
     public ConsultaResponse create(ConsultaRequest request) {
-        Pet pet = findPet(request.getPetId());
+        Pet pet = pet(petRepository, request.getPetId());
         escopo.exigirPosse(pet.getResponsavelId());
         StatusConsulta status = statusPermitido(request);
         exigirAgendaLivre(request);
@@ -208,7 +213,7 @@ public class ConsultaService {
         Consulta entity = mapper.toEntity(request);
         entity.setStatus(status);
         entity.setPet(pet);
-        entity.setVeterinario(findVeterinario(request.getVeterinarioId()));
+        entity.setVeterinario(veterinario(veterinarioRepository, request.getVeterinarioId()));
         applyUnidade(request.getUnidadeId(), entity);
         return entity;
     }
@@ -240,28 +245,6 @@ public class ConsultaService {
                 pet.getResponsavelId(), pet.getId(), TipoLembrete.CONSULTA, consulta.getDataHora().toLocalDate(),
                 "Consulta agendada para " + pet.getNome() + " em " + consulta.getDataHora().format(DATA_HORA_DO_AVISO),
                 consulta.getId(), "Consulta"));
-    }
-
-    private Pet findPet(Long petId) {
-        return petRepository.findById(petId)
-                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + petId));
-    }
-
-    private Veterinario findVeterinario(Long veterinarioId) {
-        return veterinarioRepository.findById(veterinarioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Veterinário não encontrado com id: " + veterinarioId));
-    }
-
-    /** Lista respeitando o escopo: veterinario ve tudo, responsavel so os pets dele. */
-    private Supplier<Page<Consulta>> listarNoEscopo(Pageable pageable) {
-        return () -> escopo.ehVeterinario()
-                ? repository.findAll(pageable)
-                : repository.findByPetResponsavelId(escopo.idDoResponsavel(), pageable);
-    }
-
-    /** Filtrar por um pet alheio nao pode revelar sequer que ele existe. */
-    private void exigirPosseDoPet(Long petId) {
-        escopo.exigirPosse(findPet(petId).getResponsavelId());
     }
 
     private Consulta findEntityById(Long id) {

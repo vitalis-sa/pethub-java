@@ -7,9 +7,7 @@ import fiap.pethub.dto.response.DeleteResponse;
 import fiap.pethub.dto.response.ExameResponse;
 import fiap.pethub.dto.response.UrlDeDownloadResponse;
 import fiap.pethub.dto.response.UrlDeEnvioResponse;
-import fiap.pethub.entity.Consulta;
 import fiap.pethub.entity.Exame;
-import fiap.pethub.entity.Pet;
 import fiap.pethub.exception.ResourceNotFoundException;
 import fiap.pethub.mapper.ExameMapper;
 import fiap.pethub.repository.ConsultaRepository;
@@ -29,6 +27,11 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import static fiap.pethub.service.Cadastros.pet;
+import static fiap.pethub.service.Cadastros.consulta;
+import static fiap.pethub.service.Cadastros.exigirPosseDoPet;
+import static fiap.pethub.service.Cadastros.listarNoEscopo;
+
 @Service
 @RequiredArgsConstructor
 public class ExameService {
@@ -43,7 +46,7 @@ public class ExameService {
     @Cacheable(value = "exames", key = "'lista-' + #petId + '-' + #consultaId + '-' + #pageable + '-' + @escopoDoUsuario.chaveDeCache()")
     public Page<ExameResponse> findAll(Long petId, Long consultaId, Pageable pageable) {
         if (petId != null) {
-            exigirPosseDoPet(petId);
+            exigirPosseDoPet(escopo, petRepository, petId);
         }
         return Stream.<Map.Entry<Boolean, Supplier<Page<Exame>>>>of(
                 Map.entry(petId != null,      () -> repository.findByPetId(petId, pageable)),
@@ -53,7 +56,8 @@ public class ExameService {
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .map(Supplier::get)
-                .orElseGet(listarNoEscopo(pageable))
+                .orElseGet(listarNoEscopo(escopo, () -> repository.findAll(pageable),
+                        dono -> repository.findByPetResponsavelId(dono, pageable)))
                 .map(mapper::toResponse);
     }
 
@@ -117,31 +121,9 @@ public class ExameService {
 
     private Exame buildExameEntity(ExameRequest request) {
         Exame entity = mapper.toEntity(request);
-        entity.setConsulta(findConsulta(request.getConsultaId()));
-        entity.setPet(findPet(request.getPetId()));
+        entity.setConsulta(consulta(consultaRepository, request.getConsultaId()));
+        entity.setPet(pet(petRepository, request.getPetId()));
         return entity;
-    }
-
-    private Consulta findConsulta(Long consultaId) {
-        return consultaRepository.findById(consultaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com id: " + consultaId));
-    }
-
-    private Pet findPet(Long petId) {
-        return petRepository.findById(petId)
-                .orElseThrow(() -> new ResourceNotFoundException("Pet não encontrado com id: " + petId));
-    }
-
-    /** Lista respeitando o escopo: veterinario ve tudo, responsavel so os pets dele. */
-    private Supplier<Page<Exame>> listarNoEscopo(Pageable pageable) {
-        return () -> escopo.ehVeterinario()
-                ? repository.findAll(pageable)
-                : repository.findByPetResponsavelId(escopo.idDoResponsavel(), pageable);
-    }
-
-    /** Filtrar por um pet alheio nao pode revelar sequer que ele existe. */
-    private void exigirPosseDoPet(Long petId) {
-        escopo.exigirPosse(findPet(petId).getResponsavelId());
     }
 
     private Exame findEntityById(Long id) {
