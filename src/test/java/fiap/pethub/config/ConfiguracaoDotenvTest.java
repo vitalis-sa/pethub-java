@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
  */
 class ConfiguracaoDotenvTest {
 
-    private final ConfiguracaoDotenv carregador = new ConfiguracaoDotenv();
+    private final ConfiguracaoDotenv carregador = new ConfiguracaoDotenv(destino -> destino.get());
 
     private Path escreverEnv(Path pasta, String conteudo) throws IOException {
         Path arquivo = pasta.resolve(".env");

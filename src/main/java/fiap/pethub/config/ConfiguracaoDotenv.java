@@ -1,7 +1,9 @@
 package fiap.pethub.config;
 
+import org.apache.commons.logging.Log;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.EnvironmentPostProcessor;
+import org.springframework.boot.logging.DeferredLogFactory;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
@@ -27,6 +29,13 @@ import java.util.Map;
 public class ConfiguracaoDotenv implements EnvironmentPostProcessor {
 
     private static final String NOME_DA_FONTE = "arquivo .env";
+
+    /** Roda antes do logging existir: o Spring guarda as mensagens e as emite quando ele sobe. */
+    private final Log log;
+
+    public ConfiguracaoDotenv(DeferredLogFactory logs) {
+        this.log = logs.getLog(ConfiguracaoDotenv.class);
+    }
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
@@ -59,7 +68,7 @@ public class ConfiguracaoDotenv implements EnvironmentPostProcessor {
         } catch (IOException e) {
             // Configuração ilegível não deve derrubar o boot: as variáveis de
             // ambiente reais ainda podem suprir tudo o que a aplicação precisa.
-            System.err.println("Não foi possível ler " + arquivo + ": " + e.getMessage());
+            log.warn("Não foi possível ler " + arquivo + ": " + e.getMessage());
         }
         return valores;
     }
