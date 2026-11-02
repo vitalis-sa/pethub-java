@@ -24,7 +24,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -86,8 +88,14 @@ public class VacinaTratamentoService {
     public VacinaTratamentoResponse update(Long id, VacinaTratamentoRequest request) {
         VacinaTratamento entity = findEntityById(id);
         escopo.exigirPosse(entity.getPet().getResponsavelId());
+        LocalDate proximaDoseAnterior = entity.getProximaDose();
         mapper.updateEntity(request, entity);
-        return mapper.toResponse(repository.save(entity));
+        VacinaTratamento saved = repository.save(entity);
+        // O .NET identifica o lembrete por referenciaTipo + referenciaId: reenviar atualiza a data, não duplica.
+        if (!Objects.equals(proximaDoseAnterior, saved.getProximaDose())) {
+            notificarProximaDose(saved);
+        }
+        return mapper.toResponse(saved);
     }
 
     @Transactional
