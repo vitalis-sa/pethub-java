@@ -76,6 +76,8 @@ public class DiagnosticoService {
         Diagnostico entity = findEntityById(id);
         escopo.exigirPosse(entity.getPet().getResponsavelId());
         mapper.updateEntity(request, entity);
+        // Mesma regra do create: sinal clínico não informado é "não", e as colunas são NOT NULL.
+        applyBooleanDefaults(entity);
         return mapper.toResponse(repository.save(entity));
     }
 
