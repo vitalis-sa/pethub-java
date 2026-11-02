@@ -12,14 +12,18 @@ e dos lembretes. Veja a [arquitetura de microsserviços](#arquitetura-de-micross
 | Artefato | Link |
 |---|---|
 | Repositório GitHub (Java) | https://github.com/vitalis-sa/pethub-java |
-| Repositório GitHub (.NET) | https://github.com/vitalis-sa/PetHub-.NET |
+| Repositório GitHub (.NET) | https://github.com/vitalis-sa/pethub-dotnet |
 | Repositório GitHub (aplicativo mobile) | https://github.com/FIAP-MOBILE-2026-Fevereiro/2tdspv-challenge-vitalis |
+| Repositório GitHub (IA: documentação, prompts e vídeo) | https://github.com/vitalis-sa/pethub-ai |
+| Repositório GitHub (DevOps: esta API com CI/CD no Azure) | https://github.com/vitalis-sa/pethub-devops-sprint4 |
 | Vídeo de apresentação (Sprint 4) | https://youtu.be/fIsw9z4U3s8 |
 | Aplicação online: serviço Java (clínico) | https://pethub-java.cloud.run |
 | Swagger do Java no ar | https://pethub-java.cloud.run/swagger-ui.html |
 | Aplicação online: serviço .NET (Vitalis, responsável) | https://pethub-dotnet.cloud.run |
 | Swagger do .NET no ar | https://pethub-dotnet.cloud.run/swagger |
-| Coleção Postman para testar o fluxo | [`docs/PetHub_Sprint4.postman_collection.json`](docs/PetHub_Sprint4.postman_collection.json) |
+| Coleção Postman para testar o fluxo | [`docs/PetHub_Sprint4.postman_collection.json`](docs/PetHub_Sprint4.postman_collection.json) (ver [Postman](#postman-fluxo-para-testar)) |
+| Diagrama de arquitetura | [`docs/pethub-arquitetura.pdf`](docs/pethub-arquitetura.pdf) |
+| Prints de todos os endpoints executados no Swagger | [Prints do Swagger UI](#prints-do-swagger-ui-todos-os-endpoints) |
 
 ## Grupo
 
@@ -41,6 +45,7 @@ e dos lembretes. Veja a [arquitetura de microsserviços](#arquitetura-de-micross
 | .NET | Pedro e Ana Flávia |
 | Mobile | Gustavo, Ana Flávia e João |
 | QA | Gustavo, Pedro e Lucas |
+| DevOps | João Guilherme |
 
 ## Tecnologias
 
@@ -69,7 +74,8 @@ e dos lembretes. Veja a [arquitetura de microsserviços](#arquitetura-de-micross
 ## Arquitetura de microsserviços
 
 A solução deixou de ser um serviço único. Agora são **dois microsserviços**, cada um dono do seu domínio e
-do seu código, mais o aplicativo móvel que consome os dois:
+do seu código, mais o aplicativo móvel que consome os dois. O diagrama completo, com os serviços externos,
+está em [`docs/pethub-arquitetura.pdf`](docs/pethub-arquitetura.pdf).
 
 | Serviço | Tecnologia | É dono de | Onde roda |
 |---|---|---|---|
@@ -125,7 +131,8 @@ flowchart LR
 | .NET | Pedro, Ana Flávia | Vitalis: responsável, endereço, contato, lembrete, consumidor da fila e gateway para o Java |
 | Mobile | Gustavo, Ana Flávia, João | Aplicativo Expo que consome os dois serviços |
 | QA | Gustavo, Pedro, Lucas | Testes automatizados deste repositório (`src/test`) e a [coleção Postman](#postman-fluxo-para-testar) |
-| IoT | Ana Flávia | **(preencher: como o IoT se conecta ao PetHub)** |
+| IoT, IoB e IA Generativa | Ana Flávia | A IA generativa roda **dentro deste serviço**: o app transcreve a consulta e o Java chama o Groq (`openai/gpt-oss-120b`) para gerar anamnese, receita e sugestão, que o veterinário aprova ([fluxo 2](#2-atendimento-com-ia-e-fechamento-da-consulta)), e para resumir exames. O chat do veterinário sobre o histórico do pet roda no n8n. Documentação, prompts e vídeo em [`vitalis-sa/pethub-ai`](https://github.com/vitalis-sa/pethub-ai) |
+| DevOps | João Guilherme | Este mesmo código em [`vitalis-sa/pethub-devops-sprint4`](https://github.com/vitalis-sa/pethub-devops-sprint4): CI no Azure Pipelines (build, testes e artefato) e CD para um Azure Web App, com o Oracle da FIAP como banco |
 
 ## Interface
 
@@ -188,7 +195,7 @@ java -jar target/pethub-0.0.1-SNAPSHOT.jar
 
 Ao subir, a aplicação:
 
-1. aplica as migrations do Flyway no schema (ver [Migrations](#migrations-flyway));
+1. aplica as migrations do Flyway no schema (`src/main/resources/db/migration`; uma migration já aplicada nunca é editada, a mudança entra numa nova `V2__...`);
 2. valida se as entidades JPA batem com as tabelas (`ddl-auto=validate`);
 3. sobe em `http://localhost:8080`.
 
@@ -280,6 +287,36 @@ curl http://localhost:8080/api/pets \
 | `409` | Regra de negócio recusou a operação | Leia a mensagem: agenda ocupada, prontuário já registrado ou e-mail em uso |
 | `503` | IA, serviço de responsáveis ou outra dependência externa fora do ar ou não configurada | Confira as variáveis de ambiente e tente de novo |
 
+## Postman: fluxo para testar
+
+A coleção [`docs/PetHub_Sprint4.postman_collection.json`](docs/PetHub_Sprint4.postman_collection.json) percorre o
+fluxo de negócio inteiro, nos **dois serviços publicados**, e pode ser executada de uma vez (*Run collection*). Cada
+execução cria veterinário, responsável e CPF novos, então pode ser repetida. Os scripts guardam tokens e ids em
+variáveis da coleção (`javaUrl` e `dotnetUrl` já apontam para o Cloud Run).
+
+| Etapa | O que demonstra |
+|---|---|
+| 1. Veterinário (Java) | Cadastro, login com JWT e criação da unidade |
+| 2. Responsável (.NET) | Cadastro, login, endereço e contato no serviço do responsável |
+| 3. Pet | O veterinário cadastra o pet pelo CPF (Java consulta o .NET); o responsável lista os próprios pets pelo gateway `/api/clinico` |
+| 4. Consulta | O responsável agenda pelo gateway; a mesma agenda e uma data passada são recusadas com `409`; queixas e remarcação |
+| 5. Atendimento com IA | Rascunho do Groq, aprovação, receita (vista pelos dois perfis), resumo de exame, URL assinada do PDF e vacina com próxima dose |
+| 6. Lembretes no .NET | Os lembretes que o Java publicou na fila chegaram ao .NET, inclusive as doses da receita |
+| 7. Segurança | `401` sem token e com token de serviço inválido, `403` do responsável na IA, `404` em pet alheio, `401` com senha errada |
+| 8. Limpeza | Remove o pet com o histórico |
+
+## Testes automatizados
+
+```bash
+./mvnw test
+```
+
+Os testes unitários (JUnit 5, Mockito e AssertJ) cobrem as regras de negócio sem banco: guardas da agenda e da
+remarcação, posse por recurso, fluxo da IA (rascunho, aprovação e reflexo no prontuário), publicação dos lembretes na
+fila, e-mail de confirmação e reenvio, JWT de usuário e de serviço, URLs assinadas e cache por escopo. Só o
+`PethubApplicationTests` sobe o contexto inteiro e precisa do `.env` e do Oracle; no CI do
+[repositório de DevOps](https://github.com/vitalis-sa/pethub-devops-sprint4) ele fica de fora.
+
 ## Perfis e permissões
 
 São dois tipos de usuário, e a diferença entre eles segue o domínio: **o veterinário produz o
@@ -298,7 +335,7 @@ prontuário, o responsável o consulta** — e também agenda consultas e cadast
 
 ## Fluxos completos (não-CRUD)
 
-A rubrica pede **dois fluxos completos que não sejam CRUD**. Os dois primeiros abaixo são esses:
+Desde a Sprint 3, a disciplina pede **dois fluxos completos que não sejam CRUD**. Os dois primeiros abaixo são esses:
 cada um tem regra de negócio própria, recusa o que não faz sentido e envolve mais de uma
 entidade. Os demais rodam sozinhos, sem ninguém chamar um endpoint de lembrete.
 
@@ -440,7 +477,7 @@ O aplicativo converte a voz em texto com o reconhecimento do próprio aparelho (
 - O responsável só enxerga a receita **depois** da aprovação, em `GET /api/consultas/{id}/receita`.
 - **Onde fica o prompt:** as instruções estão em `src/main/resources/prompts/*.txt` e são ligadas ao formato da resposta em [`PromptIa`](src/main/java/fiap/pethub/ia/PromptIa.java). O texto que veio do app vai à parte, dentro de uma tag (`<transcricao>`), como material a processar. O [`GroqClient`](src/main/java/fiap/pethub/ia/GroqClient.java) só envia e converte a resposta.
 - Variáveis: `GROQ_API_KEY` (obrigatória), `GROQ_MODEL`, `GROQ_URL_BASE`, `GROQ_MAX_TOKENS` e `GROQ_TIMEOUT_SEGUNDOS` (opcionais). Sem a chave, as rotas respondem 503.
-- A chave vai no cabeçalho `x-goog-api-key` e nunca é registrada em log. Falhas do serviço de IA viram 503 sem repassar o corpo do erro.
+- A chave vai no cabeçalho `Authorization: Bearer` (a API do Groq segue o formato da OpenAI) e nunca é registrada em log. Falhas do serviço de IA viram 503 sem repassar o corpo do erro.
 - A chamada ao modelo não segura transação do banco (o pool tem apenas 2 conexões).
 - Consulta cancelada não aceita análise.
 - Receita em PDF: o aplicativo monta o PDF a partir do texto aprovado (`expo-print`). O veterinário imprime na hora; o responsável baixa depois. Não há biblioteca de PDF no Java.
@@ -627,6 +664,7 @@ fiap.pethub
 │   ├── AuthService.java
 │   ├── ConsultaService.java     → Agendamento e suas guardas de agenda
 │   ├── RemocaoEmCascata.java    → Remoção coerente dos dependentes
+│   ├── Cadastros.java           → Buscas de pet, consulta e veterinário e listagem por escopo, comuns aos serviços
 │   ├── PetService.java
 │   └── ...
 │
@@ -647,7 +685,7 @@ fiap.pethub
 | Principais fluxos do sistema | Agendamento, atendimento com IA, lembretes, e-mail e arquivos | [Fluxos completos](#fluxos-completos-não-crud) e a [coleção Postman](#postman-fluxo-para-testar) |
 | Conceitos da disciplina no app criado | Segurança entre serviços, mensageria, e-mail, integração com IA, armazenamento, cache e Flyway | Seções do próprio README |
 | Narrativa e decisões de design | Microsserviços por domínio, fila para o que cruza serviços, e-mail direto com reenvio | [Arquitetura de microsserviços](#arquitetura-de-microsserviços) |
-| Integração multidisciplinar | Database, .NET, Mobile, QA e IoT | [Integração com as outras disciplinas](#integração-com-as-outras-disciplinas) |
+| Integração multidisciplinar | Database, .NET, Mobile, QA, IoT/IA Generativa e DevOps | [Integração com as outras disciplinas](#integração-com-as-outras-disciplinas) |
 | Todos os membros no vídeo | Vídeo de apresentação | https://youtu.be/fIsw9z4U3s8 |
 | Repositório com README completo, link da aplicação e vídeo | Este arquivo | [Entrega](#entrega) |
 
