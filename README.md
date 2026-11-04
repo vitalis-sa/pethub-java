@@ -16,7 +16,7 @@ e dos lembretes. Veja a [arquitetura de microsserviços](#arquitetura-de-micross
 | Repositório GitHub (aplicativo mobile) | https://github.com/FIAP-MOBILE-2026-Fevereiro/2tdspv-challenge-vitalis |
 | Repositório GitHub (IA: documentação, prompts e vídeo) | https://github.com/vitalis-sa/pethub-ai |
 | Repositório GitHub (DevOps: esta API com CI/CD no Azure) | https://github.com/vitalis-sa/pethub-devops-sprint4 |
-| Vídeo de apresentação (Sprint 4) | https://youtu.be/fIsw9z4U3s8 |
+| Vídeo de apresentação (Sprint 4) | https://youtu.be/xN2k-6CBwkw|
 | Aplicação online: serviço Java (clínico) | https://pethub-java.cloud.run |
 | Swagger do Java no ar | https://pethub-java.cloud.run/swagger-ui.html |
 | Aplicação online: serviço .NET (Vitalis, responsável) | https://pethub-dotnet.cloud.run |
@@ -137,7 +137,7 @@ flowchart LR
 ## Interface
 
 Este repositório é só a **API**: não há telas servidas pelo Java. As telas do PetHub agora são refletidas no
-**aplicativo móvel**, como o [vídeo](https://youtu.be/fIsw9z4U3s8) explica. O veterinário entra pelo Java; o
+**aplicativo móvel**, como o [vídeo](https://youtu.be/xN2k-6CBwkw) explica. O veterinário entra pelo Java; o
 responsável entra pelo .NET e usa a parte clínica pelo gateway.
 
 ## Instalação
@@ -686,7 +686,7 @@ fiap.pethub
 | Conceitos da disciplina no app criado | Segurança entre serviços, mensageria, e-mail, integração com IA, armazenamento, cache e Flyway | Seções do próprio README |
 | Narrativa e decisões de design | Microsserviços por domínio, fila para o que cruza serviços, e-mail direto com reenvio | [Arquitetura de microsserviços](#arquitetura-de-microsserviços) |
 | Integração multidisciplinar | Database, .NET, Mobile, QA, IoT/IA Generativa e DevOps | [Integração com as outras disciplinas](#integração-com-as-outras-disciplinas) |
-| Todos os membros no vídeo | Vídeo de apresentação | https://youtu.be/fIsw9z4U3s8 |
+| Todos os membros no vídeo | Vídeo de apresentação | https://youtu.be/xN2k-6CBwkw|
 | Repositório com README completo, link da aplicação e vídeo | Este arquivo | [Entrega](#entrega) |
 
 ### Sprint 3
